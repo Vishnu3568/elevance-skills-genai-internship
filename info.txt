@@ -1,0 +1,18 @@
+Customer Service Chatbot Project Information
+==========================================
+
+Overview:
+This project is an End-to-End NLP Customer Service Chatbot built using LangChain, Google Gemini API, FAISS vector database, and Streamlit.
+
+Key Components:
+1. dataset/dataset.csv: Contains frequently asked questions (FAQs) and customer service prompt-response data.
+2. src/langchain_helper.py: Contains core logic for loading data, vector store creation with FAISS embeddings, and setting up the LangChain retrieval QA chain.
+3. src/main.py: Streamlit web application providing an interactive interface for customer inquiries.
+4. .env: Stores configuration keys (e.g. GOOGLE_API_KEY).
+5. requirements.txt: Python package dependencies.
+6. README.md: Detailed project setup, installation, and user instructions.
+
+Features:
+- Retrieval-Augmented Generation (RAG) using LangChain & Gemini.
+- Fast vector similarity search with FAISS.
+- Real-time Q&A interface powered by Streamlit.
