@@ -58,7 +58,8 @@ def get_llm():
             "Add it to the .env file before starting the application."
         )
 
-    from langchain_google_genai import ChatGoogleGenerativeAI
+    # pyrefly: ignore [missing-import]
+    from langchain_google_genai import ChatGoogleGenerativeAI  # type: ignore
 
     return ChatGoogleGenerativeAI(
         model="gemini-2.0-flash",
