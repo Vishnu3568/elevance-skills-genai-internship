@@ -21,7 +21,7 @@ if btn:
 
 question = st.text_input("Question: ")
 
-if question:
+if question and question.strip():
     # Analyze user sentiment before generating response
     sentiment_label = "NEUTRAL"
     try:
@@ -54,8 +54,11 @@ if question:
         else:
             answer = str(response)
 
-        # Adapt tone based on sentiment if answer is not 'I don't know.'
-        if answer.strip().lower() != "i don't know.":
+        # Adapt tone based on sentiment if answer is grounded (not 'I don't know.')
+        norm_ans = answer.strip().lower().rstrip(".")
+        is_ood = norm_ans in ("i don't know", "i do not know") or norm_ans.startswith("i don't know")
+        
+        if not is_ood:
             if sentiment_label == "NEGATIVE":
                 answer = f"I am sorry to hear about your experience and frustration. {answer}"
             elif sentiment_label == "POSITIVE":
