@@ -48,13 +48,24 @@ def analyze_sentiment(text: str) -> Dict[str, Any]:
         raise RuntimeError("Sentiment pipeline returned invalid output structure.")
 
     first_result = results[0]
-    raw_label = first_result.get("label", "").lower()
+    if not isinstance(first_result, dict):
+        raise RuntimeError("Sentiment pipeline item is not a dictionary.")
+
+    raw_label = str(first_result.get("label", "")).lower()
     score = float(first_result.get("score", 0.0))
 
+    label_map = {
+        "positive": "positive", "pos": "positive", "label_2": "positive",
+        "negative": "negative", "neg": "negative", "label_0": "negative",
+        "neutral": "neutral", "neu": "neutral", "label_1": "neutral",
+    }
+    normalized_label = label_map.get(raw_label, raw_label)
+
     return {
-        "label": raw_label,
+        "label": normalized_label,
         "score": score
     }
+
 
 
 if __name__ == "__main__":
