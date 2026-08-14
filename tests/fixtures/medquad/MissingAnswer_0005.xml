@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Document id="0005" source="ADAM" url="https://medlineplus.gov/ency/article/000005.htm">
+	<Focus>Asthma</Focus>
+	<QAPairs>
+		<QAPair pid="1">
+			<Question qid="0005-1" qtype="treatment">What are the treatments for Asthma?</Question>
+			<Answer></Answer>
+		</QAPair>
+	</QAPairs>
+</Document>

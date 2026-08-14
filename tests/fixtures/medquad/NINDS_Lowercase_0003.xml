@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Document id="0003" source="NINDS" url="https://www.ninds.nih.gov/stroke">
+	<doctitle-focus>Stroke</doctitle-focus>
+	<umls>
+		<cuis>
+			<cui>C0038454</cui>
+		</cuis>
+		<semantictypes>
+			<semantictype>Disease or Syndrome</semantictype>
+		</semantictypes>
+		<semanticgroup>Disorders</semanticgroup>
+	</umls>
+	<qaPairs>
+		<qaPair pid="1">
+			<question qid="0003-1" qtype="treatment">How is stroke treated?</question>
+			<answer>Emergency stroke treatment depends on whether it is ischemic or hemorrhagic.</answer>
+		</qaPair>
+	</qaPairs>
+</Document>

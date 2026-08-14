@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Document id="0004" source="CDC" url="https://www.cdc.gov/measles">
+	<Focus>Measles</Focus>
+	<QAPairs>
+		<QAPair pid="1">
+			<Question qid="0004-1" qtype="prevention">How to prevent measles?</Question>
+			<Answer>The MMR vaccine is the best way to prevent measles.</Answer>
+		</QAPair>
+	</QAPairs>
+</Document>

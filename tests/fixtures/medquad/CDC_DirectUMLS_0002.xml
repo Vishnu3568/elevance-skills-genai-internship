@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Document id="0002" source="CDC" url="https://www.cdc.gov/flu">
+	<Focus>Influenza</Focus>
+	<UMLS>
+		<CUIs>
+			<CUI>C0015780</CUI>
+		</CUIs>
+		<SemanticTypes>
+			<SemanticType>Disease or Syndrome</SemanticType>
+		</SemanticTypes>
+		<SemanticGroup>Disorders</SemanticGroup>
+	</UMLS>
+	<QAPairs>
+		<QAPair pid="1">
+			<Question qid="0002-1" qtype="symptoms">What are flu symptoms?</Question>
+			<Answer>Flu symptoms include fever, cough, sore throat, and muscle aches.</Answer>
+		</QAPair>
+	</QAPairs>
+</Document>

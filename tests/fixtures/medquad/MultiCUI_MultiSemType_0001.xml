@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Document id="0001" source="GARD" url="https://rarediseases.info.nih.gov">
+	<Focus>Breast Cancer</Focus>
+	<FocusAnnotations>
+		<UMLS>
+			<CUIs>
+				<CUI>C0006142</CUI>
+				<CUI>C0006143</CUI>
+			</CUIs>
+			<SemanticTypes>
+				<SemanticType>Neoplastic Process</SemanticType>
+				<SemanticType>Disease or Syndrome</SemanticType>
+			</SemanticTypes>
+			<SemanticGroup>Disorders</SemanticGroup>
+		</UMLS>
+		<Synonyms>
+			<Synonym>Mammary Carcinoma</Synonym>
+		</Synonyms>
+	</FocusAnnotations>
+	<QAPairs>
+		<QAPair pid="1">
+			<Question qid="0001-1" qtype="information">What is Breast Cancer?</Question>
+			<Answer>Breast cancer is a disease where breast cells grow uncontrollably.</Answer>
+		</QAPair>
+	</QAPairs>
+</Document>
