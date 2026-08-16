@@ -26,6 +26,7 @@ htmlcov/
 
 .streamlit/secrets.toml
 faiss_index/
+faiss_index_medical/
 
 *.log
 
