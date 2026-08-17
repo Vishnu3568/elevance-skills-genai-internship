@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Document id="0006" source="CancerGov" url="https://www.cancer.gov/types/breast">
+	<Focus>Breast Cancer</Focus>
+	<FocusAnnotations>
+		<UMLS>
+			<CUIs>
+				<CUI>C0006142</CUI>
+			</CUIs>
+			<SemanticTypes>
+				<SemanticType>Neoplastic Process</SemanticType>
+			</SemanticTypes>
+			<SemanticGroup>Disorders</SemanticGroup>
+		</UMLS>
+		<Synonyms>
+			<Synonym>Mammary Cancer</Synonym>
+		</Synonyms>
+	</FocusAnnotations>
+	<QAPairs>
+		<QAPair pid="1">
+			<Question qid="0006-1" qtype="treatment">What are the treatments for Breast Cancer?</Question>
+			<Answer>Treatments for breast cancer include surgery, chemotherapy, radiation therapy, and hormone therapy.</Answer>
+		</QAPair>
+	</QAPairs>
+</Document>
