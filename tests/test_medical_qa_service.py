@@ -314,6 +314,101 @@ class TestMedicalQAService(unittest.TestCase):
         self.assertEqual(candidates[0].document.metadata["focus"], "Breast Cancer")
         self.assertGreater(candidates[0].final_score, 0.5)
 
+    # 14. Unknown Disease + Unrelated Evidence -> Blocked (INSUFFICIENT_EVIDENCE, LLM Bypassed)
+    def test_14_unknown_disease_unrelated_evidence_blocked(self):
+        doc_flu = Document(
+            page_content="Flu symptoms include fever and chills.",
+            metadata={"source": "CDC", "focus": "Influenza", "question_type": "symptoms"}
+        )
+        mock_db = MockVectorDB([(doc_flu, 0.53)])
+        mock_llm = MockLLM(response_text="Fake response")
+        service = MedicalQAService(vector_db=mock_db, analyzer=self.analyzer, llm=mock_llm)
+
+        # Asking for diabetes symptoms when only Influenza is retrieved
+        response = service.process_query("What are the symptoms of diabetes?")
+        self.assertFalse(response.is_grounded)
+        self.assertEqual(response.status, "INSUFFICIENT_EVIDENCE")
+        self.assertEqual(response.confidence_score, 0.0)
+        self.assertEqual(mock_llm.call_count, 0)
+        self.assertIn("could not find sufficient grounded information", response.final_answer)
+
+    # 15. Unknown Treatment/Entity + Unrelated Evidence -> Blocked (INSUFFICIENT_EVIDENCE, LLM Bypassed)
+    def test_15_unknown_treatment_unrelated_evidence_blocked(self):
+        doc_breast = Document(
+            page_content="Breast cancer surgery details.",
+            metadata={"source": "CancerGov", "focus": "Breast Cancer", "question_type": "treatment"}
+        )
+        mock_db = MockVectorDB([(doc_breast, 0.60)])
+        mock_llm = MockLLM(response_text="Fake response")
+        service = MedicalQAService(vector_db=mock_db, analyzer=self.analyzer, llm=mock_llm)
+
+        # Asking for chemotherapy side effects when only breast surgery doc is retrieved
+        response = service.process_query("What are the side effects of chemotherapy?")
+        self.assertFalse(response.is_grounded)
+        self.assertEqual(response.status, "INSUFFICIENT_EVIDENCE")
+        self.assertEqual(response.confidence_score, 0.0)
+        self.assertEqual(mock_llm.call_count, 0)
+
+    # 16. Known Topic + Matching Evidence -> GROUNDED (LLM Invoked 1x)
+    def test_16_known_topic_matching_evidence_grounded(self):
+        mock_db = MockVectorDB([(self.doc_breast_treatment, 0.10)])
+        mock_llm = MockLLM(response_text="Verified breast cancer treatments.")
+        service = MedicalQAService(vector_db=mock_db, analyzer=self.analyzer, llm=mock_llm)
+
+        response = service.process_query("What are the treatments for breast cancer?")
+        self.assertTrue(response.is_grounded)
+        self.assertEqual(response.status, "GROUNDED")
+        self.assertGreater(response.confidence_score, 0.80)
+        self.assertEqual(mock_llm.call_count, 1)
+        self.assertEqual(response.final_answer, "Verified breast cancer treatments.")
+
+    # 17. Known Topic + Unrelated Evidence -> Blocked (INSUFFICIENT_EVIDENCE, LLM Bypassed)
+    def test_17_known_topic_unrelated_evidence_blocked(self):
+        doc_stroke = Document(
+            page_content="Stroke rehabilitation options.",
+            metadata={"source": "NINDS", "focus": "Stroke", "question_type": "treatment"}
+        )
+        mock_db = MockVectorDB([(doc_stroke, 0.40)])
+        mock_llm = MockLLM(response_text="Fake response")
+        service = MedicalQAService(vector_db=mock_db, analyzer=self.analyzer, llm=mock_llm)
+
+        # Asking for breast cancer treatments when only Stroke doc is returned
+        response = service.process_query("What are the treatments for breast cancer?")
+        self.assertFalse(response.is_grounded)
+        self.assertEqual(response.status, "INSUFFICIENT_EVIDENCE")
+        self.assertEqual(response.confidence_score, 0.0)
+        self.assertEqual(mock_llm.call_count, 0)
+
+    # 18. Out-of-Domain Query -> OUT_OF_DOMAIN (LLM Bypassed)
+    def test_18_out_of_domain_query_bypasses_llm(self):
+        doc_flu = Document(
+            page_content="Flu symptoms.",
+            metadata={"source": "CDC", "focus": "Influenza", "question_type": "symptoms"}
+        )
+        mock_db = MockVectorDB([(doc_flu, 0.90)])
+        mock_llm = MockLLM(response_text="Fake response")
+        service = MedicalQAService(vector_db=mock_db, analyzer=self.analyzer, llm=mock_llm)
+
+        response = service.process_query("What is the capital of Japan?")
+        self.assertFalse(response.is_grounded)
+        self.assertEqual(response.status, "OUT_OF_DOMAIN")
+        self.assertEqual(response.confidence_score, 0.0)
+        self.assertEqual(mock_llm.call_count, 0)
+        self.assertIn("does not appear to be related to medical", response.final_answer)
+
+    # 19. Confidence Score Bounded in [0.0, 1.0]
+    def test_19_confidence_score_bounded_in_unit_interval(self):
+        # Even with high cumulative boosts (e.g. 1.45), score should not exceed 1.0 (100%)
+        mock_db = MockVectorDB([(self.doc_breast_treatment, 0.05)])
+        mock_llm = MockLLM(response_text="Answer")
+        service = MedicalQAService(vector_db=mock_db, analyzer=self.analyzer, llm=mock_llm)
+
+        response = service.process_query("What are the treatments for breast cancer?")
+        self.assertTrue(response.is_grounded)
+        self.assertLessEqual(response.confidence_score, 1.0)
+        self.assertGreaterEqual(response.confidence_score, 0.0)
+        self.assertEqual(get_confidence_tier(response.confidence_score), "HIGH")
+
 
 if __name__ == "__main__":
     unittest.main()
