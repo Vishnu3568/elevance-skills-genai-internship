@@ -29,6 +29,7 @@ faiss_index/
 faiss_index_medical/
 
 *.log
+scratch/
 
 
 .DS_Store
