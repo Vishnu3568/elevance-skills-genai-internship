@@ -133,4 +133,16 @@ def get_medical_retriever(
 
 
 if __name__ == "__main__":
-    print("MedQuAD Indexer module initialized cleanly.")
+    import argparse
+    parser = argparse.ArgumentParser(description="MedQuAD XML Vector Database Indexer")
+    parser.add_argument("--xml_dir", type=str, help="Path to directory containing MedQuAD XML files")
+    parser.add_argument("--index_path", type=str, default=DEFAULT_MEDICAL_INDEX_PATH, help="Path to save the FAISS vector index")
+    args = parser.parse_args()
+
+    if args.xml_dir:
+        print(f"Building MedQuAD FAISS vector index from {args.xml_dir} ...")
+        db = create_medical_vector_db(xml_dir=args.xml_dir, index_path=args.index_path)
+        print(f"Successfully created and persisted MedQuAD FAISS index to: {args.index_path}")
+    else:
+        print("MedQuAD Indexer module initialized cleanly.")
+        print("Usage to build index: python src/medquad_indexer.py --xml_dir <path_to_medquad_xmls> [--index_path faiss_index_medical]")
