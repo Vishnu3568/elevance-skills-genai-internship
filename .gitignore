@@ -30,6 +30,7 @@ faiss_index_medical/
 
 *.log
 scratch/
+backups/
 
 
 .DS_Store
