@@ -1,24 +1,51 @@
-from typing import Dict
+from typing import Dict, Optional
 
 import pandas as pd
 
-from src.knowledge_base.ingestion import (
-    DUPLICATE,
-    INVALID,
-    NEW,
-    UPDATED,
-    classify_updates,
-)
-from src.knowledge_base.store import (
-    apply_updates,
-    load_knowledge_base,
-    save_knowledge_base,
-)
-from src.knowledge_base.vector_store import (
-    add_documents_to_vector_store,
-    create_knowledge_documents,
-)
-from src.langchain_helper import get_instructor_embeddings
+try:
+    from src.knowledge_base.audit import (
+        DEFAULT_HISTORY_PATH,
+        record_update,
+    )
+    from src.knowledge_base.ingestion import (
+        DUPLICATE,
+        INVALID,
+        NEW,
+        UPDATED,
+        classify_updates,
+    )
+    from src.knowledge_base.store import (
+        apply_updates,
+        load_knowledge_base,
+        save_knowledge_base,
+    )
+    from src.knowledge_base.vector_store import (
+        add_documents_to_vector_store,
+        create_knowledge_documents,
+    )
+    from src.langchain_helper import get_instructor_embeddings
+except ImportError:
+    from knowledge_base.audit import (
+        DEFAULT_HISTORY_PATH,
+        record_update,
+    )
+    from knowledge_base.ingestion import (
+        DUPLICATE,
+        INVALID,
+        NEW,
+        UPDATED,
+        classify_updates,
+    )
+    from knowledge_base.store import (
+        apply_updates,
+        load_knowledge_base,
+        save_knowledge_base,
+    )
+    from knowledge_base.vector_store import (
+        add_documents_to_vector_store,
+        create_knowledge_documents,
+    )
+    from langchain_helper import get_instructor_embeddings
 try:
     from langchain_community.vectorstores import FAISS
 except ImportError:
@@ -29,6 +56,7 @@ def update_knowledge_base(
     knowledge_base_path: str,
     update_source_path: str,
     vector_store_path: str,
+    history_path: Optional[str] = DEFAULT_HISTORY_PATH,
 ) -> Dict[str, int]:
     """
     Process incoming knowledge and update the managed
@@ -112,7 +140,7 @@ def update_knowledge_base(
         knowledge_base_path,
     )
 
-    return {
+    result_summary = {
         "existing_records": len(knowledge_base),
         "incoming_records": len(incoming),
         "final_records": len(updated_knowledge_base),
@@ -121,3 +149,14 @@ def update_knowledge_base(
         "duplicate": summary[DUPLICATE],
         "invalid": summary[INVALID],
     }
+
+    # Record persistent audit entry only after FAISS and CSV persistence succeed
+    if history_path:
+        record_update(
+            history_path=history_path,
+            update_summary=result_summary,
+            source=update_source_path,
+            status="SUCCESS",
+        )
+
+    return result_summary
