@@ -22,10 +22,10 @@ class TestFaissDynamicUpdate(unittest.TestCase):
 
     def test_faiss_add_new_knowledge(self):
         base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-        kb_path = os.path.join(base_dir, "dataset", "knowledge_base.csv")
+        kb_path = os.path.join(base_dir, "dataset", "dataset.csv")
         updates_path = os.path.join(base_dir, "dataset", "knowledge_updates.csv")
 
-        existing = pd.read_csv(kb_path, encoding="utf-8")
+        existing = pd.read_csv(kb_path, encoding="latin1")
         incoming = pd.read_csv(updates_path, encoding="latin1")
 
         classified = classify_updates(existing, incoming)
