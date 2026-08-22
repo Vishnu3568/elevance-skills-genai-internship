@@ -1,0 +1,9 @@
+[
+  {
+    "name": "primary_knowledge_updates",
+    "path": "dataset/knowledge_updates.csv",
+    "format": "csv",
+    "enabled": true,
+    "description": "Primary batch update source for new curriculum, project guidelines, and bootcamp FAQs"
+  }
+]
