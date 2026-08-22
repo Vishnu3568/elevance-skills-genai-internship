@@ -3,12 +3,20 @@ from typing import Dict, List
 
 import pandas as pd
 
-from src.knowledge_base.ingestion import (
-    INVALID,
-    NEW,
-    UPDATED,
-    normalize_text,
-)
+try:
+    from src.knowledge_base.ingestion import (
+        INVALID,
+        NEW,
+        UPDATED,
+        normalize_text,
+    )
+except ImportError:
+    from knowledge_base.ingestion import (
+        INVALID,
+        NEW,
+        UPDATED,
+        normalize_text,
+    )
 
 
 REQUIRED_COLUMNS = {"prompt", "response"}
