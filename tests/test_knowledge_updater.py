@@ -52,13 +52,18 @@ class TestKnowledgeUpdater(unittest.TestCase):
             index=False,
         )
 
+        history_path = str(base / "history.jsonl")
+
         with self.assertRaises(ValueError) as context:
             update_knowledge_base(
-                str(knowledge_base_path),
-                str(update_source_path),
-                "unused",
+                knowledge_base_path=str(knowledge_base_path),
+                update_source_path=str(update_source_path),
+                vector_store_path="unused",
+                history_path=history_path,
             )
         self.assertIn("UPDATED records require a vector-store rebuild", str(context.exception))
+        # Ensure no audit record was written on abort
+        self.assertFalse(os.path.exists(history_path))
 
     def test_faiss_failure_preserves_knowledge_base_csv(self):
         base = Path(self.temp_dir)
@@ -66,6 +71,7 @@ class TestKnowledgeUpdater(unittest.TestCase):
         knowledge_base_path = base / "knowledge_base.csv"
         update_source_path = base / "updates.csv"
         non_existent_vector_path = str(base / "non_existent_faiss_dir")
+        history_path = str(base / "history.jsonl")
 
         initial_data = [
             {
@@ -95,15 +101,18 @@ class TestKnowledgeUpdater(unittest.TestCase):
         # Vector store load will fail because path does not exist
         with self.assertRaises(Exception):
             update_knowledge_base(
-                str(knowledge_base_path),
-                str(update_source_path),
-                non_existent_vector_path,
+                knowledge_base_path=str(knowledge_base_path),
+                update_source_path=str(update_source_path),
+                vector_store_path=non_existent_vector_path,
+                history_path=history_path,
             )
 
         # Verify that the knowledge base file on disk was NOT mutated
         current_kb = pd.read_csv(knowledge_base_path, encoding="utf-8")
         self.assertEqual(len(current_kb), 1)
         self.assertEqual(current_kb.iloc[0]["prompt"], "What is Python?")
+        # Ensure no SUCCESS audit record was written on failure
+        self.assertFalse(os.path.exists(history_path))
 
 
 # Standalone functions for pytest compatibility
