@@ -65,98 +65,111 @@ def update_knowledge_base(
     Incremental FAISS updates are currently supported
     for NEW records.
     """
-
-    knowledge_base = load_knowledge_base(
-        knowledge_base_path
-    )
-
-    incoming = pd.read_csv(
-        update_source_path,
-        encoding="latin1",
-    )
-
-    classified = classify_updates(
-        knowledge_base,
-        incoming,
-    )
-
-    summary = {
-        NEW: 0,
-        UPDATED: 0,
-        DUPLICATE: 0,
-        INVALID: 0,
-    }
-
-    for item in classified:
-        summary[item["status"]] += 1
-
-    # Prevent stale vectors from being silently introduced.
-    if summary[UPDATED] > 0:
-        raise ValueError(
-            "UPDATED records require a vector-store rebuild. "
-            "Incremental update aborted."
+    try:
+        knowledge_base = load_knowledge_base(
+            knowledge_base_path
         )
 
-    updated_knowledge_base = apply_updates(
-        knowledge_base,
-        classified,
-    )
+        incoming = pd.read_csv(
+            update_source_path,
+            encoding="latin1",
+        )
 
-    new_records = [
-        {
-            "prompt": item["prompt"],
-            "response": item["response"],
-            "row": len(knowledge_base) + index,
+        classified = classify_updates(
+            knowledge_base,
+            incoming,
+        )
+
+        summary = {
+            NEW: 0,
+            UPDATED: 0,
+            DUPLICATE: 0,
+            INVALID: 0,
         }
-        for index, item in enumerate(classified)
-        if item["status"] == NEW
-    ]
 
-    if new_records:
-        embeddings = get_instructor_embeddings()
+        for item in classified:
+            summary[item["status"]] += 1
 
-        vector_store = FAISS.load_local(
-            vector_store_path,
-            embeddings,
-            allow_dangerous_deserialization=True,
+        # Prevent stale vectors from being silently introduced.
+        if summary[UPDATED] > 0:
+            raise ValueError(
+                "UPDATED records require a vector-store rebuild. "
+                "Incremental update aborted."
+            )
+
+        updated_knowledge_base = apply_updates(
+            knowledge_base,
+            classified,
         )
 
-        documents = create_knowledge_documents(
-            new_records
+        new_records = [
+            {
+                "prompt": item["prompt"],
+                "response": item["response"],
+                "row": len(knowledge_base) + index,
+            }
+            for index, item in enumerate(classified)
+            if item["status"] == NEW
+        ]
+
+        if new_records:
+            embeddings = get_instructor_embeddings()
+
+            vector_store = FAISS.load_local(
+                vector_store_path,
+                embeddings,
+                allow_dangerous_deserialization=True,
+            )
+
+            documents = create_knowledge_documents(
+                new_records
+            )
+
+            add_documents_to_vector_store(
+                vector_store,
+                documents,
+            )
+
+            vector_store.save_local(
+                vector_store_path
+            )
+
+        # Persist the managed CSV only after vector store update succeeds
+        save_knowledge_base(
+            updated_knowledge_base,
+            knowledge_base_path,
         )
 
-        add_documents_to_vector_store(
-            vector_store,
-            documents,
-        )
+        result_summary = {
+            "existing_records": len(knowledge_base),
+            "incoming_records": len(incoming),
+            "final_records": len(updated_knowledge_base),
+            "new": summary[NEW],
+            "updated": summary[UPDATED],
+            "duplicate": summary[DUPLICATE],
+            "invalid": summary[INVALID],
+        }
 
-        vector_store.save_local(
-            vector_store_path
-        )
+        # Record persistent audit entry only after FAISS and CSV persistence succeed
+        if history_path:
+            record_update(
+                history_path=history_path,
+                update_summary=result_summary,
+                source=update_source_path,
+                status="SUCCESS",
+            )
 
-    # Persist the managed CSV only after vector store update succeeds
-    save_knowledge_base(
-        updated_knowledge_base,
-        knowledge_base_path,
-    )
+        return result_summary
 
-    result_summary = {
-        "existing_records": len(knowledge_base),
-        "incoming_records": len(incoming),
-        "final_records": len(updated_knowledge_base),
-        "new": summary[NEW],
-        "updated": summary[UPDATED],
-        "duplicate": summary[DUPLICATE],
-        "invalid": summary[INVALID],
-    }
-
-    # Record persistent audit entry only after FAISS and CSV persistence succeed
-    if history_path:
-        record_update(
-            history_path=history_path,
-            update_summary=result_summary,
-            source=update_source_path,
-            status="SUCCESS",
-        )
-
-    return result_summary
+    except Exception as e:
+        if history_path:
+            try:
+                record_update(
+                    history_path=history_path,
+                    source=update_source_path,
+                    status="FAILED",
+                    error=str(e),
+                )
+            except Exception:
+                pass
+        raise
