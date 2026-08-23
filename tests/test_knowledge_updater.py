@@ -11,6 +11,7 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path.append(os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "src"))
 
 from src.knowledge_base.updater import update_knowledge_base
+from src.knowledge_base.audit import load_update_history
 
 
 class TestKnowledgeUpdater(unittest.TestCase):
@@ -62,8 +63,11 @@ class TestKnowledgeUpdater(unittest.TestCase):
                 history_path=history_path,
             )
         self.assertIn("UPDATED records require a vector-store rebuild", str(context.exception))
-        # Ensure no audit record was written on abort
-        self.assertFalse(os.path.exists(history_path))
+        # Ensure FAILED audit record was written on abort
+        history = load_update_history(history_path)
+        self.assertEqual(len(history), 1)
+        self.assertEqual(history[0]["status"], "FAILED")
+        self.assertIn("UPDATED records require a vector-store rebuild", history[0]["error"])
 
     def test_faiss_failure_preserves_knowledge_base_csv(self):
         base = Path(self.temp_dir)
@@ -111,8 +115,10 @@ class TestKnowledgeUpdater(unittest.TestCase):
         current_kb = pd.read_csv(knowledge_base_path, encoding="utf-8")
         self.assertEqual(len(current_kb), 1)
         self.assertEqual(current_kb.iloc[0]["prompt"], "What is Python?")
-        # Ensure no SUCCESS audit record was written on failure
-        self.assertFalse(os.path.exists(history_path))
+        # Verify that FAILED audit record was written
+        history = load_update_history(history_path)
+        self.assertEqual(len(history), 1)
+        self.assertEqual(history[0]["status"], "FAILED")
 
 
 # Standalone functions for pytest compatibility
