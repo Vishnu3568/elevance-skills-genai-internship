@@ -14,19 +14,25 @@ DEFAULT_HISTORY_PATH = os.path.join(
 
 def record_update(
     history_path: str,
-    update_summary: Dict[str, Any],
-    source: str,
+    update_summary: Optional[Dict[str, Any]] = None,
+    source: str = "",
     status: str = "SUCCESS",
-    timestamp: Optional[str] = None
+    timestamp: Optional[str] = None,
+    error: Optional[str] = None,
+    reason: Optional[str] = None,
 ) -> Dict[str, Any]:
     """Append a structured update entry to the persistent JSON Lines audit log.
 
+    Supports SUCCESS, FAILED, and SKIPPED audit entries.
+
     Args:
         history_path (str): Filepath to the .jsonl audit file.
-        update_summary (Dict[str, Any]): Execution summary from updater.
+        update_summary (Optional[Dict[str, Any]]): Execution summary from updater (for SUCCESS).
         source (str): Source identifier / filepath of incoming updates.
-        status (str): Status of the update event (default: 'SUCCESS').
+        status (str): Status of the update event ('SUCCESS', 'FAILED', 'SKIPPED').
         timestamp (Optional[str]): Explicit ISO timestamp (defaults to current UTC timestamp).
+        error (Optional[str]): Error description (for FAILED status).
+        reason (Optional[str]): Skip reason (for SKIPPED status).
 
     Returns:
         Dict[str, Any]: The recorded audit log entry.
@@ -34,18 +40,36 @@ def record_update(
     if timestamp is None:
         timestamp = datetime.now(timezone.utc).isoformat()
 
-    entry = {
-        "timestamp": timestamp,
-        "source": str(source),
-        "existing_records": int(update_summary.get("existing_records", 0)),
-        "incoming_records": int(update_summary.get("incoming_records", 0)),
-        "final_records": int(update_summary.get("final_records", 0)),
-        "new": int(update_summary.get("new", 0)),
-        "updated": int(update_summary.get("updated", 0)),
-        "duplicate": int(update_summary.get("duplicate", 0)),
-        "invalid": int(update_summary.get("invalid", 0)),
-        "status": str(status)
-    }
+    status_upper = str(status).upper()
+
+    if status_upper in ("FAILED", "REBUILD_FAILED"):
+        entry = {
+            "timestamp": timestamp,
+            "source": str(source),
+            "status": status_upper,
+            "error": str(error or "Unknown error"),
+        }
+    elif status_upper == "SKIPPED":
+        entry = {
+            "timestamp": timestamp,
+            "source": str(source),
+            "status": "SKIPPED",
+            "reason": str(reason or "Update skipped"),
+        }
+    else:
+        summary = update_summary or {}
+        entry = {
+            "timestamp": timestamp,
+            "source": str(source),
+            "existing_records": int(summary.get("existing_records", 0)),
+            "incoming_records": int(summary.get("incoming_records", 0)),
+            "final_records": int(summary.get("final_records", 0)),
+            "new": int(summary.get("new", 0)),
+            "updated": int(summary.get("updated", 0)),
+            "duplicate": int(summary.get("duplicate", 0)),
+            "invalid": int(summary.get("invalid", 0)),
+            "status": status_upper if status_upper in ("REBUILD_SUCCESS", "SUCCESS") else "SUCCESS",
+        }
 
     target_path = Path(history_path)
     target_path.parent.mkdir(parents=True, exist_ok=True)
@@ -54,6 +78,38 @@ def record_update(
         f.write(json.dumps(entry) + "\n")
 
     return entry
+
+
+def record_failure(
+    history_path: str,
+    source: str,
+    error: str,
+    timestamp: Optional[str] = None,
+) -> Dict[str, Any]:
+    """Convenience helper to append a FAILED audit log entry."""
+    return record_update(
+        history_path=history_path,
+        source=source,
+        status="FAILED",
+        error=error,
+        timestamp=timestamp,
+    )
+
+
+def record_skip(
+    history_path: str,
+    source: str,
+    reason: str,
+    timestamp: Optional[str] = None,
+) -> Dict[str, Any]:
+    """Convenience helper to append a SKIPPED audit log entry."""
+    return record_update(
+        history_path=history_path,
+        source=source,
+        status="SKIPPED",
+        reason=reason,
+        timestamp=timestamp,
+    )
 
 
 def load_update_history(history_path: str) -> List[Dict[str, Any]]:
@@ -95,6 +151,6 @@ def get_last_successful_update(history_path: str) -> Optional[Dict[str, Any]]:
     """
     history = load_update_history(history_path)
     for entry in reversed(history):
-        if entry.get("status") == "SUCCESS":
+        if entry.get("status") in ("SUCCESS", "REBUILD_SUCCESS"):
             return entry
     return None    
