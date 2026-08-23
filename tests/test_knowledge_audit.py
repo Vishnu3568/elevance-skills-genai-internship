@@ -92,6 +92,49 @@ class TestKnowledgeAudit(unittest.TestCase):
         self.assertEqual(history, [])
         self.assertIsNone(get_last_successful_update(non_existent))
 
+    def test_record_failure_creates_valid_failed_entry(self):
+        entry = record_update(
+            history_path=self.history_path,
+            source="dataset/broken.csv",
+            status="FAILED",
+            error="UPDATED records require a vector-store rebuild.",
+        )
+        self.assertEqual(entry["status"], "FAILED")
+        self.assertEqual(entry["source"], "dataset/broken.csv")
+        self.assertEqual(entry["error"], "UPDATED records require a vector-store rebuild.")
+        self.assertIn("timestamp", entry)
+
+        history = load_update_history(self.history_path)
+        self.assertEqual(len(history), 1)
+        self.assertEqual(history[0]["status"], "FAILED")
+        self.assertEqual(history[0]["error"], "UPDATED records require a vector-store rebuild.")
+
+    def test_record_skip_creates_valid_skipped_entry(self):
+        entry = record_update(
+            history_path=self.history_path,
+            source="dataset/busy.csv",
+            status="SKIPPED",
+            reason="Another update execution is currently in progress.",
+        )
+        self.assertEqual(entry["status"], "SKIPPED")
+        self.assertEqual(entry["source"], "dataset/busy.csv")
+        self.assertEqual(entry["reason"], "Another update execution is currently in progress.")
+
+        history = load_update_history(self.history_path)
+        self.assertEqual(len(history), 1)
+        self.assertEqual(history[0]["status"], "SKIPPED")
+
+    def test_get_last_successful_update_ignores_failures_and_skips(self):
+        summary_1 = {"existing_records": 76, "incoming_records": 3, "final_records": 79, "new": 3}
+        record_update(self.history_path, summary_1, source="source1.csv", status="SUCCESS")
+        record_update(self.history_path, source="source2.csv", status="FAILED", error="Some error")
+        record_update(self.history_path, source="source3.csv", status="SKIPPED", reason="Mutex locked")
+
+        last_success = get_last_successful_update(self.history_path)
+        self.assertIsNotNone(last_success)
+        self.assertEqual(last_success["source"], "source1.csv")
+        self.assertEqual(last_success["status"], "SUCCESS")
+
     def test_load_malformed_lines_handled_safely(self):
         with open(self.history_path, "w", encoding="utf-8") as f:
             f.write('{"timestamp": "2026-08-22T00:00:00Z", "status": "SUCCESS", "source": "valid.csv"}\n')
