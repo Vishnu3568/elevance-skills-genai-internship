@@ -17,6 +17,7 @@ from src.knowledge_base.sources import (
     get_enabled_sources,
     process_configured_sources,
 )
+from src.knowledge_base.audit import load_update_history
 from src.knowledge_base.vector_store import create_knowledge_documents
 from src.langchain_helper import get_instructor_embeddings
 try:
@@ -168,6 +169,7 @@ class TestKnowledgeSources(unittest.TestCase):
         base = Path(self.temp_dir)
         kb_path = base / "knowledge_base.csv"
         faiss_dir = base / "faiss_test"
+        history_path = base / "history.jsonl"
 
         pd.DataFrame([{"prompt": "Q?", "response": "A."}]).to_csv(kb_path, index=False, encoding="utf-8")
 
@@ -181,11 +183,18 @@ class TestKnowledgeSources(unittest.TestCase):
             config_path=self.config_path,
             knowledge_base_path=str(kb_path),
             vector_store_path=str(faiss_dir),
+            history_path=str(history_path),
         )
 
         self.assertEqual(len(outcomes), 1)
         self.assertEqual(outcomes[0]["status"], "ERROR")
         self.assertIn("Source file not found", outcomes[0]["error"])
+
+        # Verify persistent FAILED audit record was created
+        history = load_update_history(str(history_path))
+        self.assertEqual(len(history), 1)
+        self.assertEqual(history[0]["status"], "FAILED")
+        self.assertIn("Source file not found", history[0]["error"])
 
 
 # Standalone function for pytest compatibility
