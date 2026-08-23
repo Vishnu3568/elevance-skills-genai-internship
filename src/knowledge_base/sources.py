@@ -4,10 +4,10 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 try:
-    from src.knowledge_base.audit import DEFAULT_HISTORY_PATH
+    from src.knowledge_base.audit import DEFAULT_HISTORY_PATH, record_update
     from src.knowledge_base.updater import update_knowledge_base
 except ImportError:
-    from knowledge_base.audit import DEFAULT_HISTORY_PATH
+    from knowledge_base.audit import DEFAULT_HISTORY_PATH, record_update
     from knowledge_base.updater import update_knowledge_base
 
 DEFAULT_SOURCES_CONFIG_PATH = os.path.join(
@@ -134,11 +134,22 @@ def process_configured_sources(
                 resolved_path = candidate
 
         if not os.path.exists(resolved_path):
+            error_msg = f"Source file not found: {source_path}"
+            if history_path:
+                try:
+                    record_update(
+                        history_path=history_path,
+                        source=source_path,
+                        status="FAILED",
+                        error=error_msg,
+                    )
+                except Exception:
+                    pass
             results.append({
                 "source_name": source_name,
                 "path": source_path,
                 "status": "ERROR",
-                "error": f"Source file not found: {source_path}",
+                "error": error_msg,
             })
             continue
 
