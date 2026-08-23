@@ -14,7 +14,7 @@ INVALID = "INVALID"
 
 def normalize_text(value: object) -> str:
     """Normalize text for deterministic comparison."""
-    if value is None:
+    if value is None or pd.isna(value):
         return ""
 
     return str(value).strip().lower()
