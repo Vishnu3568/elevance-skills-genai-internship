@@ -218,6 +218,71 @@ class TestScientificRetriever(unittest.TestCase):
         context = format_retrieval_context([])
         self.assertEqual(context, "No relevant scientific papers found.")
 
+    def test_evidence_context_multi_paper_deterministic_numbering(self):
+        """Verify multiple retrieved papers receive deterministic sequential numbering and separation."""
+        results = self.retriever.retrieve("neural networks and transformers", k=3)
+        context = format_retrieval_context(results)
+
+        self.assertIn("[Paper 1]", context)
+        self.assertIn("[Paper 2]", context)
+        self.assertIn("[Paper 3]", context)
+        self.assertIn("\n\n---\n\n", context)
+        # Verify ordering strictly follows results list
+        pos1 = context.find(f"arXiv ID: {results[0].arxiv_id}")
+        pos2 = context.find(f"arXiv ID: {results[1].arxiv_id}")
+        pos3 = context.find(f"arXiv ID: {results[2].arxiv_id}")
+        self.assertTrue(pos1 < pos2 < pos3, "Evidence context ordering is not strictly deterministic")
+
+    def test_evidence_context_url_fallback_and_author_list(self):
+        """Verify URL auto-fallback to arXiv ID link and author list formatting."""
+        mock_result = ScientificRetrievalResult(
+            document=None,  # type: ignore
+            arxiv_id="2005.99999",
+            title="Mock Scientific Breakthrough",
+            authors=["Alice Smith", "Bob Jones"],  # type: ignore
+            primary_category="cs.AI",
+            categories=["cs.AI", "cs.LG"],
+            published_date="2020-05-15",
+            score=0.1234,
+            concepts=["Reinforcement Learning"],
+            doi="10.1234/mock",
+            journal_ref="Nature AI",
+            url="",  # Empty URL to trigger fallback
+        )
+        context = format_retrieval_context([mock_result])
+
+        self.assertIn("URL: https://arxiv.org/abs/2005.99999", context)
+        self.assertIn("Authors: Alice Smith, Bob Jones", context)
+        self.assertIn("DOI: 10.1234/mock", context)
+        self.assertIn("Journal: Nature AI", context)
+
+    def test_evidence_context_missing_optional_metadata_robustness(self):
+        """Verify format_retrieval_context handles completely bare/missing optional metadata safely."""
+        bare_result = ScientificRetrievalResult(
+            document=None,  # type: ignore
+            arxiv_id="1901.00001",
+            title="",
+            authors="",
+            primary_category="",
+            categories=[],
+            published_date="",
+            score=0.5,
+            concepts=[],
+            doi="",
+            journal_ref="",
+            url="",
+        )
+        context = format_retrieval_context([bare_result])
+
+        self.assertIn("[Paper 1]", context)
+        self.assertIn("Title: Untitled Paper", context)
+        self.assertIn("arXiv ID: 1901.00001", context)
+        self.assertIn("Authors: Unknown", context)
+        self.assertIn("Published: Unknown", context)
+        self.assertIn("Concepts: None", context)
+        self.assertIn("URL: https://arxiv.org/abs/1901.00001", context)
+
+
     def test_query_validation(self):
         with self.assertRaises(TypeError):
             self.retriever.retrieve(12345)  # type: ignore
