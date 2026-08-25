@@ -233,6 +233,137 @@ class TestScientificRetriever(unittest.TestCase):
         with self.assertRaises(ValueError):
             ScientificRetriever(None)  # type: ignore
 
+    def test_category_filter_beyond_target_k_times_four(self):
+        """Verify category filtering finds a matching document ranked beyond target_k * 4."""
+        deep_papers = []
+        # Create 12 high-similarity papers in cs.LG
+        for i in range(1, 13):
+            deep_papers.append(
+                ScientificPaper(
+                    arxiv_id=f"1901.{i:05d}",
+                    title=f"Reinforcement Learning Optimization Paradigm {i}",
+                    authors=["Common Author"],
+                    abstract="Reinforcement learning optimization and policy gradients...",
+                    categories=["cs.LG"],
+                    primary_category="cs.LG",
+                    published_date="2019-01-15",
+                    concepts=["Reinforcement Learning"],
+                )
+            )
+        # Create 13th paper in cs.CL (lower lexical similarity to RL query)
+        deep_papers.append(
+            ScientificPaper(
+                arxiv_id="1901.99999",
+                title="Syntactic Language Parsing and Dependency Trees",
+                authors=["Linguistics Team"],
+                abstract="Linguistic syntax trees and natural language dependency grammar...",
+                categories=["cs.CL"],
+                primary_category="cs.CL",
+                published_date="2019-02-20",
+                concepts=["NLP", "Parsing"],
+            )
+        )
+
+        deep_store = build_scientific_vector_store(
+            papers=deep_papers,
+            store_path=str(self.base / "deep_store_cat"),
+            embeddings=self.embeddings,
+        )
+        deep_retriever = ScientificRetriever(deep_store, default_k=1)
+
+        # Query matches RL papers strongly, but we filter specifically for cs.CL
+        # With old fetch_k = target_k * 4 = 4, the 13th paper would never be fetched.
+        # With dynamic full-corpus search, it must be discovered.
+        results = deep_retriever.retrieve(
+            "Reinforcement Learning Optimization",
+            k=1,
+            category_filter="cs.CL",
+        )
+        self.assertEqual(len(results), 1)
+        self.assertEqual(results[0].arxiv_id, "1901.99999")
+        self.assertEqual(results[0].primary_category, "cs.CL")
+
+    def test_author_filter_beyond_target_k_times_four(self):
+        """Verify author filtering finds a matching paper ranked beyond target_k * 4."""
+        deep_papers = []
+        # Create 12 high-similarity papers with General Author
+        for i in range(1, 13):
+            deep_papers.append(
+                ScientificPaper(
+                    arxiv_id=f"2001.{i:05d}",
+                    title=f"Computer Vision Feature Extraction {i}",
+                    authors=["General Author"],
+                    abstract="Convolutional visual feature representation extraction...",
+                    categories=["cs.CV"],
+                    primary_category="cs.CV",
+                    published_date="2020-01-10",
+                    concepts=["Computer Vision"],
+                )
+            )
+        # Create 13th paper with unique target author
+        deep_papers.append(
+            ScientificPaper(
+                arxiv_id="2001.88888",
+                title="Deep Vision Classification Framework",
+                authors=["UniqueTargetAuthor"],
+                abstract="Deep convolutional networks for image classification...",
+                categories=["cs.CV"],
+                primary_category="cs.CV",
+                published_date="2020-03-15",
+                concepts=["Computer Vision"],
+            )
+        )
+
+        deep_store = build_scientific_vector_store(
+            papers=deep_papers,
+            store_path=str(self.base / "deep_store_author"),
+            embeddings=self.embeddings,
+        )
+        deep_retriever = ScientificRetriever(deep_store, default_k=1)
+
+        # target_k = 1 with author filter for UniqueTargetAuthor
+        results = deep_retriever.retrieve(
+            "Computer Vision Feature Extraction",
+            k=1,
+            author_filter="UniqueTargetAuthor",
+        )
+        self.assertEqual(len(results), 1)
+        self.assertEqual(results[0].arxiv_id, "2001.88888")
+        self.assertIn("UniqueTargetAuthor", results[0].authors)
+
+    def test_combined_metadata_filters_deep_recall(self):
+        """Verify combined category, min_year, and concept filters work accurately."""
+        results = self.retriever.retrieve(
+            "transformers and neural networks",
+            k=2,
+            category_filter="cs.CL",
+            min_year=2020,
+            concept_filter="RAG",
+        )
+        self.assertEqual(len(results), 1)
+        self.assertEqual(results[0].arxiv_id, "2005.11401")
+        self.assertEqual(results[0].primary_category, "cs.CL")
+        self.assertIn("RAG", results[0].concepts)
+
+    def test_unfiltered_retrieval_respects_target_k_and_no_duplicates(self):
+        """Verify unfiltered retrieval respects target_k and contains zero duplicate results."""
+        results = self.retriever.retrieve("Transformer neural networks", k=3)
+        self.assertEqual(len(results), 3)
+
+        retrieved_ids = [r.arxiv_id for r in results]
+        self.assertEqual(len(retrieved_ids), len(set(retrieved_ids)))
+
+    def test_target_k_respected_when_many_matches_pass_filters(self):
+        """Verify that when many papers pass filters, only target_k results are returned."""
+        # Both paper1 and paper2 are in cs.CL
+        results = self.retriever.retrieve(
+            "neural networks",
+            k=1,
+            category_filter="cs.CL",
+        )
+        self.assertEqual(len(results), 1)
+        self.assertEqual(results[0].primary_category, "cs.CL")
+
     def test_retriever_isolation_from_production_stores(self):
         """Verify retriever operations never modify production customer or medical stores."""
         proj_root = Path(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -254,3 +385,4 @@ class TestScientificRetriever(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+

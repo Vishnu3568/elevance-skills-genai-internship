@@ -133,13 +133,33 @@ class ScientificRetriever:
 
         active_threshold = score_threshold if score_threshold is not None else self.score_threshold
 
-        # Fetch more candidates if metadata filtering is requested to ensure top-k post-filter
-        fetch_k = target_k * 4 if (category_filter or min_year or author_filter or concept_filter) else target_k
-        total_vectors = self.vector_store.index.ntotal if hasattr(self.vector_store, "index") else fetch_k
-        fetch_k = min(fetch_k, total_vectors) if total_vectors > 0 else fetch_k
+        # Determine total available documents in the vector store dynamically
+        total_vectors = 0
+        if hasattr(self.vector_store, "index") and hasattr(self.vector_store.index, "ntotal"):
+            total_vectors = int(self.vector_store.index.ntotal)
+        elif hasattr(self.vector_store, "docstore") and hasattr(self.vector_store.docstore, "_dict"):
+            total_vectors = len(self.vector_store.docstore._dict)
+
+        has_filters = bool(
+            category_filter
+            or (min_year is not None)
+            or author_filter
+            or concept_filter
+            or (active_threshold is not None)
+        )
+
+        if has_filters:
+            # When metadata filters or score thresholds are active, search up to the full
+            # corpus size to guarantee that any matching document in the store can be considered.
+            fetch_k = total_vectors if total_vectors > 0 else max(target_k * 10, 100)
+        else:
+            fetch_k = min(target_k, total_vectors) if total_vectors > 0 else target_k
+
+        fetch_k = max(fetch_k, 1)
 
         # 1. Execute similarity search with distance score (L2 distance: lower is more similar)
         raw_results = self.vector_store.similarity_search_with_score(stripped_query, k=fetch_k)
+
 
         # Normalize filter parameters
         target_categories: Optional[List[str]] = None
