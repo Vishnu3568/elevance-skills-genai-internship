@@ -48,25 +48,69 @@ def format_retrieval_context(results: List[ScientificRetrievalResult]) -> str:
 
     context_blocks = []
     for idx, res in enumerate(results, 1):
-        categories_str = ", ".join(res.categories) if res.categories else res.primary_category
-        concepts_str = ", ".join(res.concepts) if res.concepts else "None"
-        doi_str = f" | DOI: {res.doi}" if res.doi else ""
-        journal_str = f" | Journal: {res.journal_ref}" if res.journal_ref else ""
+        # Safe string handling for authors
+        if isinstance(res.authors, list):
+            authors_str = ", ".join(str(a) for a in res.authors if a)
+        else:
+            authors_str = str(res.authors or "Unknown")
+
+        # Safe category formatting
+        primary_cat = str(res.primary_category or "").strip()
+        if isinstance(res.categories, list):
+            cats_list = [str(c).strip() for c in res.categories if str(c).strip()]
+            categories_str = ", ".join(cats_list) if cats_list else primary_cat
+        elif isinstance(res.categories, str) and res.categories.strip():
+            categories_str = res.categories.strip()
+        else:
+            categories_str = primary_cat
+
+        if primary_cat and categories_str and categories_str != primary_cat:
+            cat_display = f"{primary_cat} ({categories_str})"
+        elif primary_cat:
+            cat_display = primary_cat
+        else:
+            cat_display = categories_str or "General AI/ML"
+
+        # Safe concepts formatting
+        if isinstance(res.concepts, list) and res.concepts:
+            concepts_str = ", ".join(str(c) for c in res.concepts if c)
+        else:
+            concepts_str = "None"
+
+        # Safe URL formatting with auto-fallback to arXiv ID link
+        url_str = res.url.strip() if (res.url and isinstance(res.url, str)) else ""
+        if not url_str and res.arxiv_id:
+            url_str = f"https://arxiv.org/abs/{res.arxiv_id.strip()}"
+
+        # Safe DOI and Journal formatting
+        doi_str = f" | DOI: {res.doi}" if (res.doi and str(res.doi).strip()) else ""
+        journal_str = f" | Journal: {res.journal_ref}" if (res.journal_ref and str(res.journal_ref).strip()) else ""
+
+        # Safe publication date
+        pub_date_str = str(res.published_date or "Unknown")
+
+        # Safe content extraction
+        content = ""
+        if res.document and hasattr(res.document, "page_content") and res.document.page_content:
+            content = res.document.page_content.strip()
+        elif hasattr(res, "abstract") and getattr(res, "abstract"):
+            content = str(getattr(res, "abstract")).strip()
 
         block = (
             f"[Paper {idx}]\n"
-            f"Title: {res.title}\n"
-            f"arXiv ID: {res.arxiv_id}\n"
-            f"Authors: {res.authors}\n"
-            f"Published: {res.published_date}{doi_str}{journal_str}\n"
-            f"Categories: {res.primary_category} ({categories_str})\n"
+            f"Title: {res.title or 'Untitled Paper'}\n"
+            f"arXiv ID: {res.arxiv_id or 'N/A'}\n"
+            f"Authors: {authors_str}\n"
+            f"Published: {pub_date_str}{doi_str}{journal_str}\n"
+            f"Categories: {cat_display}\n"
             f"Concepts: {concepts_str}\n"
-            f"URL: {res.url}\n"
-            f"Content:\n{res.document.page_content}"
+            f"URL: {url_str}\n"
+            f"Content:\n{content}"
         )
         context_blocks.append(block)
 
     return "\n\n---\n\n".join(context_blocks)
+
 
 
 class ScientificRetriever:
