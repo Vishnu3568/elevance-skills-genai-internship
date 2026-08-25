@@ -34,11 +34,11 @@ class TestScientificProductionIndex(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.proj_root = Path(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-        cls.dataset_path = cls.proj_root / "dataset" / "arxiv_ai_ml_subset.jsonl"
+        cls.dataset_path = cls.proj_root / "dataset" / "arxiv_ai_ml_subset_kaggle.jsonl"
         cls.store_path = cls.proj_root / DEFAULT_SCIENTIFIC_VECTOR_STORE_PATH
 
     def test_production_dataset_file_and_schema_validation(self):
-        """Verify that dataset/arxiv_ai_ml_subset.jsonl contains 100 valid scientific records."""
+        """Verify that dataset/arxiv_ai_ml_subset_kaggle.jsonl contains 100 valid scientific records."""
         self.assertTrue(self.dataset_path.exists(), f"Dataset not found at {self.dataset_path}")
         result = ingest_jsonl(str(self.dataset_path))
 
@@ -89,7 +89,7 @@ class TestScientificProductionIndex(unittest.TestCase):
         vector_store = load_scientific_vector_store(str(self.store_path), embeddings=embeddings)
         retriever = ScientificRetriever(vector_store, default_k=3)
 
-        results = retriever.retrieve("speech recognition and speaker diarization", k=3)
+        results = retriever.retrieve("natural language processing and neural language models", k=3)
         self.assertGreaterEqual(len(results), 1)
         top = results[0]
         self.assertTrue(top.arxiv_id)
@@ -119,3 +119,4 @@ class TestScientificProductionIndex(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
