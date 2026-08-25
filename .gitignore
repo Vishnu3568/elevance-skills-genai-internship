@@ -46,3 +46,6 @@ npm-debug.log*
 
 # Local environment snapshot
 requirements.current.txt
+
+# Large raw dataset snapshots
+dataset/arxiv-metadata-oai-snapshot.json
