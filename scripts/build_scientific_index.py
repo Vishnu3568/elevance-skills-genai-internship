@@ -1,8 +1,8 @@
 """Build script for the Production Scientific FAISS Vector Store.
 
-Reads authentic arXiv records from dataset/arxiv_ai_ml_subset.jsonl, validates each record,
-creates LangChain documents with scientific metadata, builds the FAISS index using
-instructor embeddings, and saves exclusively to faiss_index_scientific/.
+Reads authentic arXiv records from dataset/arxiv_ai_ml_subset_kaggle.jsonl (Kaggle snapshot),
+validates each record, creates LangChain documents with scientific metadata, builds the FAISS
+index using instructor embeddings, and saves exclusively to faiss_index_scientific/.
 """
 
 import argparse
@@ -44,9 +44,11 @@ logging.basicConfig(
 )
 logger = logging.getLogger("build_scientific_index")
 
+DEFAULT_DATASET_PATH = "dataset/arxiv_ai_ml_subset_kaggle.jsonl"
+
 
 def build_production_index(
-    dataset_path: str = "dataset/arxiv_ai_ml_subset.jsonl",
+    dataset_path: str = DEFAULT_DATASET_PATH,
     store_path: str = DEFAULT_SCIENTIFIC_VECTOR_STORE_PATH,
 ) -> int:
     """Ingest authentic arXiv JSONL dataset and build production FAISS vector store.
@@ -102,9 +104,9 @@ def build_production_index(
     retriever = ScientificRetriever(vector_store=loaded_store, default_k=3)
 
     sample_queries = [
-        "natural language processing and speech models",
-        "deep learning and neural network training",
-        "computer vision and multi-modal representations",
+        "natural language processing and deep learning",
+        "neural network optimization and machine learning representations",
+        "computer vision and convolutional architectures",
     ]
 
     for q in sample_queries:
@@ -119,7 +121,13 @@ def build_production_index(
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Build production scientific FAISS vector store.")
-    parser.add_argument("--dataset", default="dataset/arxiv_ai_ml_subset.jsonl", help="Path to input JSONL dataset.")
+    parser.add_argument(
+        "--dataset",
+        "--input",
+        dest="dataset",
+        default=DEFAULT_DATASET_PATH,
+        help=f"Path to input JSONL dataset (default: {DEFAULT_DATASET_PATH}).",
+    )
     parser.add_argument("--store", default=DEFAULT_SCIENTIFIC_VECTOR_STORE_PATH, help="Target FAISS directory.")
     args = parser.parse_args()
 
@@ -127,3 +135,4 @@ if __name__ == "__main__":
         dataset_path=args.dataset,
         store_path=args.store,
     )
+
