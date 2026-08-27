@@ -42,6 +42,7 @@ try:
         ScientificGenerator,
         ScientificRetrievalResult,
         ScientificRetriever,
+        StructuredPaperAnalysis,
         TimelineEntry,
         load_scientific_vector_store,
     )
@@ -68,6 +69,7 @@ except ImportError:
         ScientificGenerator,
         ScientificRetrievalResult,
         ScientificRetriever,
+        StructuredPaperAnalysis,
         TimelineEntry,
         load_scientific_vector_store,
     )
@@ -125,6 +127,87 @@ def render_sources_panel(sources: List[ScientificRetrievalResult]):
             if hasattr(src, "document") and src.document and src.document.page_content:
                 st.markdown(f"> *{src.document.page_content[:300]}...*")
             st.divider()
+
+
+def render_structured_analysis_card(analysis: StructuredPaperAnalysis):
+    """Render a structured research-paper understanding breakdown card.
+
+    Args:
+        analysis (StructuredPaperAnalysis): Validated paper understanding model.
+    """
+    if not analysis:
+        return
+
+    st.markdown(f"### 🔬 Research Understanding: *{analysis.title}*")
+    st.caption(f"**arXiv ID**: `{analysis.arxiv_id}`")
+
+    # 1. Research Problem & Motivation
+    if analysis.research_problem or analysis.motivation:
+        col_prob, col_mot = st.columns(2)
+        with col_prob:
+            if analysis.research_problem:
+                st.markdown("#### 🎯 Research Problem")
+                st.markdown(f"> {analysis.research_problem}")
+        with col_mot:
+            if analysis.motivation:
+                st.markdown("#### 💡 Motivation")
+                st.markdown(f"> {analysis.motivation}")
+
+    # 2. Methodology & Model Architecture
+    if analysis.methodology or analysis.model_architecture:
+        col_meth, col_arch = st.columns(2)
+        with col_meth:
+            if analysis.methodology:
+                st.markdown("#### ⚙️ Methodology")
+                st.markdown(analysis.methodology)
+        with col_arch:
+            if analysis.model_architecture:
+                st.markdown("#### 🏗️ Model Architecture")
+                st.markdown(analysis.model_architecture)
+
+    # 3. Key Contributions
+    if analysis.key_contributions:
+        st.markdown("#### 🏆 Key Contributions")
+        for item in analysis.key_contributions:
+            st.markdown(f"- {item}")
+
+    # 4. Datasets, Benchmarks & Quantitative Results
+    if analysis.datasets_benchmarks or analysis.quantitative_results or analysis.key_findings:
+        col_d, col_r = st.columns(2)
+        with col_d:
+            if analysis.datasets_benchmarks:
+                st.markdown("#### 📊 Datasets / Benchmarks")
+                for db in analysis.datasets_benchmarks:
+                    st.markdown(f"- `{db}`")
+            if analysis.key_findings:
+                st.markdown("#### 📈 Key Findings")
+                for kf in analysis.key_findings:
+                    st.markdown(f"- {kf}")
+        with col_r:
+            if analysis.quantitative_results:
+                st.markdown("#### 🔢 Quantitative Results")
+                for qr in analysis.quantitative_results:
+                    st.markdown(f"- **{qr}**")
+
+    # 5. Limitations & Open Questions
+    if analysis.limitations or analysis.open_questions:
+        col_lim, col_open = st.columns(2)
+        with col_lim:
+            if analysis.limitations:
+                st.markdown("#### ⚠️ Limitations")
+                for lim in analysis.limitations:
+                    st.markdown(f"- {lim}")
+        with col_open:
+            if analysis.open_questions:
+                st.markdown("#### ❓ Open Questions")
+                for oq in analysis.open_questions:
+                    st.markdown(f"- {oq}")
+
+    # 6. Technical Concepts
+    if analysis.technical_concepts:
+        st.markdown("#### 🏷️ Technical Concepts")
+        badges = " ".join([f"`{tc}`" for tc in analysis.technical_concepts])
+        st.markdown(badges)
 
 
 def generate_dot_graph(graph: ScientificExplorationGraph, max_edges: int = 50) -> str:
@@ -450,14 +533,21 @@ def main():
                                 st.divider()
 
     # -------------------------------------------------------------
-    # TAB 3: Paper Summarizer
+    # TAB 3: Paper Summarizer & Deep Analyzer
     # -------------------------------------------------------------
     with tab_summary:
-        st.subheader("📄 Structured Scientific Paper Summarizer")
-        st.markdown("Generate a structured 6-section summary (Contributions, Methodology, Findings, Limitations) grounded in evidence.")
+        st.subheader("📄 Structured Scientific Paper Summarizer & Deep Analyzer")
+        st.markdown("Generate evidence-grounded textual summaries or deep structured dimension breakdowns (Methodology, Contributions, Findings, Benchmarks, Limitations).")
 
         summary_input = st.text_input("Enter Paper arXiv ID or Title", placeholder="e.g. 2012.10055v2 or Attention Is All You Need")
-        if st.button("Generate Paper Summary", type="primary"):
+
+        col_sum_btn, col_struct_btn = st.columns([1, 1])
+        with col_sum_btn:
+            btn_text_summary = st.button("Generate Paper Summary", type="primary")
+        with col_struct_btn:
+            btn_deep_analysis = st.button("🔬 Extract Structured Analysis", type="secondary")
+
+        if btn_text_summary:
             if not summary_input.strip():
                 st.warning("Please enter a paper identifier or title.")
             else:
@@ -466,6 +556,20 @@ def main():
                     st.markdown(summary_resp.answer)
                     render_grounding_status(summary_resp.grounded, summary_resp.warning_message)
                     render_sources_panel(summary_resp.sources)
+
+        if btn_deep_analysis:
+            if not summary_input.strip():
+                st.warning("Please enter a paper identifier or title.")
+            else:
+                with st.spinner("Extracting structured research understanding from abstract..."):
+                    try:
+                        analysis_res = service.analyze_paper(summary_input.strip())
+                        if analysis_res is None:
+                            st.warning(f"Could not find a matching scientific paper for '{summary_input}'.")
+                        else:
+                            render_structured_analysis_card(analysis_res)
+                    except Exception as exc:
+                        st.error(f"Failed to extract structured paper analysis: {exc}")
 
     # -------------------------------------------------------------
     # TAB 4: Concept Explainer
