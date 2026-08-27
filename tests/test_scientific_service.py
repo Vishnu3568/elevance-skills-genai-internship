@@ -1,3 +1,4 @@
+import json
 import unittest
 import sys
 import os
@@ -14,6 +15,8 @@ try:
     # pyrefly: ignore [missing-import]
     from src.scientific_kb import (  # type: ignore
         ScientificPaper,
+        StructuredPaperAnalysis,
+        PaperUnderstandingService,
         build_scientific_vector_store,
         ScientificRetriever,
         ScientificGenerator,
@@ -30,6 +33,8 @@ except ImportError:
     # pyrefly: ignore [missing-import]
     from scientific_kb import (  # type: ignore
         ScientificPaper,
+        StructuredPaperAnalysis,
+        PaperUnderstandingService,
         build_scientific_vector_store,
         ScientificRetriever,
         ScientificGenerator,
@@ -151,6 +156,40 @@ class FakeExpertLLM:
                     "#### 🚀 Why It Matters in Modern AI\n"
                     "Foundation for LLMs like GPT, BERT, and LLaMA."
                 )
+            )
+
+        # Structured Extraction prompt
+        if "STRUCTURED JSON EXTRACTION:" in prompt_str:
+            return AIMessage(
+                content=json.dumps({
+                    "research_problem": "Computational bottlenecks of recurrent sequence models.",
+                    "motivation": "Sequential computation prevents parallelization during training.",
+                    "methodology": "Solely rely on multi-head self-attention mechanisms without recurrence.",
+                    "model_architecture": "Encoder-decoder Transformer with 8 parallel attention heads.",
+                    "key_contributions": [
+                        "First sequence transduction model based entirely on self-attention.",
+                        "Significant reduction in training time and superior translation quality.",
+                    ],
+                    "datasets_benchmarks": ["WMT 2014 English-to-German", "WMT 2014 English-to-French"],
+                    "key_findings": [
+                        "Self-attention connects all pairs of input tokens with constant path length.",
+                    ],
+                    "quantitative_results": [
+                        "28.4 BLEU on WMT 2014 English-to-German benchmark.",
+                        "41.8 BLEU on WMT 2014 English-to-French benchmark.",
+                    ],
+                    "limitations": [
+                        "Quadratic memory complexity with sequence length.",
+                    ],
+                    "open_questions": [
+                        "Extending attention architectures to long-context inputs and other modalities.",
+                    ],
+                    "technical_concepts": [
+                        "Transformer",
+                        "Multi-Head Self-Attention",
+                        "Positional Encoding",
+                    ],
+                })
             )
 
         # Default QA / General Prompt
@@ -324,6 +363,71 @@ class TestScientificService(unittest.TestCase):
         self.assertFalse(unknown_summary.grounded)
         self.assertIn("Could not find scientific paper", unknown_summary.answer)
 
+    def test_analyze_paper_by_arxiv_id_success(self):
+        """Verify successful structured paper analysis for a known paper by arXiv ID."""
+        analysis = self.service.analyze_paper("1706.03762")
+        self.assertIsNotNone(analysis)
+        self.assertIsInstance(analysis, StructuredPaperAnalysis)
+        self.assertEqual(analysis.arxiv_id, "1706.03762")
+        self.assertEqual(analysis.title, "Attention Is All You Need")
+        self.assertIn("Encoder-decoder Transformer", analysis.model_architecture)
+        self.assertEqual(len(analysis.key_contributions), 2)
+        self.assertEqual(len(analysis.datasets_benchmarks), 2)
+        self.assertEqual(len(analysis.quantitative_results), 2)
+        self.assertEqual(len(analysis.limitations), 1)
+        self.assertEqual(len(analysis.technical_concepts), 3)
+
+    def test_analyze_paper_by_title_success(self):
+        """Verify successful structured paper analysis by title query."""
+        analysis = self.service.analyze_paper("Attention Is All You Need")
+        self.assertIsNotNone(analysis)
+        self.assertEqual(analysis.arxiv_id, "1706.03762")
+        self.assertEqual(analysis.title, "Attention Is All You Need")
+
+    def test_analyze_paper_non_existent_returns_none(self):
+        """Verify that non-existent paper query gracefully returns None."""
+        analysis = self.service.analyze_paper("9999.88888")
+        self.assertIsNone(analysis)
+
+    def test_analyze_paper_input_validation(self):
+        """Verify empty and invalid type inputs for analyze_paper raise proper errors."""
+        with self.assertRaises(ValueError):
+            self.service.analyze_paper("   ")
+
+        with self.assertRaises(ValueError):
+            self.service.analyze_paper("")
+
+        with self.assertRaises(TypeError):
+            self.service.analyze_paper(12345)  # type: ignore
+
+    def test_custom_understanding_service_injection(self):
+        """Verify that an explicitly injected PaperUnderstandingService is used by ScientificExpertService."""
+        custom_llm = FakeExpertLLM()
+        custom_understanding = PaperUnderstandingService(llm=custom_llm)
+        custom_service = ScientificExpertService(
+            retriever=self.retriever,
+            generator=self.generator,
+            understanding_service=custom_understanding,
+        )
+        self.assertIs(custom_service.understanding_service, custom_understanding)
+
+        analysis = custom_service.analyze_paper("1706.03762")
+        self.assertIsNotNone(analysis)
+        self.assertEqual(analysis.arxiv_id, "1706.03762")
+
+    def test_analyze_paper_records_in_session_history(self):
+        """Verify that analyze_paper appends user and assistant messages to active session."""
+        initial_history_count = len(self.service.get_session_messages())
+        analysis = self.service.analyze_paper("1706.03762")
+        self.assertIsNotNone(analysis)
+
+        updated_history = self.service.get_session_messages()
+        self.assertEqual(len(updated_history), initial_history_count + 2)
+        self.assertEqual(updated_history[-2].role, "user")
+        self.assertIn("Analyze paper: 1706.03762", updated_history[-2].content)
+        self.assertEqual(updated_history[-1].role, "assistant")
+        self.assertIn("Extracted structured analysis for 'Attention Is All You Need'", updated_history[-1].content)
+
     def test_service_isolation_from_production_stores(self):
         """Verify that ScientificExpertService never alters customer or medical stores."""
         proj_root = Path(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -336,6 +440,7 @@ class TestScientificService(unittest.TestCase):
         self.service.ask("Transformer test")
         self.service.summarize_paper("1706.03762")
         self.service.compare("LoRA", "Fine-tuning")
+        self.service.analyze_paper("1706.03762")
 
         if customer_faiss.exists():
             self.assertEqual(customer_faiss.stat().st_mtime, cust_mtime)
@@ -345,3 +450,4 @@ class TestScientificService(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
