@@ -9,7 +9,9 @@ try:
     # pyrefly: ignore [missing-import]
     from src.scientific_kb import (  # type: ignore
         ScientificPaper,
+        StructuredPaperAnalysis,
         validate_paper,
+        validate_structured_analysis,
         parse_paper,
         is_target_domain,
         SUPPORTED_CATEGORIES,
@@ -18,7 +20,9 @@ except ImportError:
     # pyrefly: ignore [missing-import]
     from scientific_kb import (  # type: ignore
         ScientificPaper,
+        StructuredPaperAnalysis,
         validate_paper,
+        validate_structured_analysis,
         parse_paper,
         is_target_domain,
         SUPPORTED_CATEGORIES,
@@ -277,5 +281,184 @@ class TestScientificPaperModels(unittest.TestCase):
             parse_paper({"id": 12345, "title": "Invalid ID Type"})  # type: ignore
 
 
+class TestStructuredPaperAnalysisModel(unittest.TestCase):
+    """Unit tests for StructuredPaperAnalysis data model, validation, and serialization."""
+
+    def test_valid_full_structured_analysis_creation(self):
+        analysis = StructuredPaperAnalysis(
+            arxiv_id="2005.11401",
+            title="Retrieval-Augmented Generation for Knowledge-Intensive NLP Tasks",
+            research_problem="Pre-trained language models struggle with factual recall and precise knowledge access.",
+            motivation="Parametric memory alone is prone to hallucinations and difficult to update dynamically.",
+            methodology="Combine pre-trained seq2seq models with a dense neural retriever over Wikipedia documents.",
+            model_architecture="Dense Passage Retriever (DPR) encoder + BART generator with marginalization over retrieved documents.",
+            key_contributions=[
+                "Formulated RAG-Sequence and RAG-Token models for end-to-end knowledge retrieval and generation.",
+                "Demonstrated state-of-the-art results on open-domain question answering benchmarks.",
+            ],
+            datasets_benchmarks=["Natural Questions", "TriviaQA", "WebQuestions", "CuratedTREC", "MS-MARCO"],
+            key_findings=[
+                "RAG generates more specific, diverse, and factual language than parametric-only models.",
+                "Non-parametric index can be swapped without retraining the generator.",
+            ],
+            quantitative_results=[
+                "Achieved 44.5 Exact Match on Natural Questions, outperforming standard BART and T5 baselines.",
+            ],
+            limitations=[
+                "Computational overhead of retrieving and marginalizing over multiple documents during inference.",
+            ],
+            open_questions=[
+                "Extending RAG architectures to multi-modal document retrieval and generation.",
+            ],
+            technical_concepts=[
+                "Retrieval-Augmented Generation",
+                "Dense Passage Retrieval",
+                "Parametric vs Non-Parametric Memory",
+            ],
+        )
+        validate_structured_analysis(analysis)
+        self.assertEqual(analysis.arxiv_id, "2005.11401")
+        self.assertEqual(analysis.title, "Retrieval-Augmented Generation for Knowledge-Intensive NLP Tasks")
+        self.assertEqual(len(analysis.key_contributions), 2)
+        self.assertEqual(len(analysis.datasets_benchmarks), 5)
+        self.assertEqual(len(analysis.key_findings), 2)
+        self.assertEqual(len(analysis.quantitative_results), 1)
+        self.assertEqual(len(analysis.limitations), 1)
+        self.assertEqual(len(analysis.open_questions), 1)
+        self.assertEqual(len(analysis.technical_concepts), 3)
+
+    def test_minimal_structured_analysis_with_defaults(self):
+        analysis = StructuredPaperAnalysis(
+            arxiv_id="1706.03762",
+            title="Attention Is All You Need",
+        )
+        validate_structured_analysis(analysis)
+        self.assertEqual(analysis.arxiv_id, "1706.03762")
+        self.assertEqual(analysis.title, "Attention Is All You Need")
+        self.assertEqual(analysis.research_problem, "")
+        self.assertEqual(analysis.motivation, "")
+        self.assertEqual(analysis.methodology, "")
+        self.assertEqual(analysis.model_architecture, "")
+        self.assertEqual(analysis.key_contributions, [])
+        self.assertEqual(analysis.datasets_benchmarks, [])
+        self.assertEqual(analysis.key_findings, [])
+        self.assertEqual(analysis.quantitative_results, [])
+        self.assertEqual(analysis.limitations, [])
+        self.assertEqual(analysis.open_questions, [])
+        self.assertEqual(analysis.technical_concepts, [])
+
+    def test_empty_arxiv_id_fails_validation(self):
+        with self.assertRaises(ValueError):
+            validate_structured_analysis(
+                StructuredPaperAnalysis(arxiv_id="   ", title="Some Title")
+            )
+        with self.assertRaises(TypeError):
+            validate_structured_analysis(
+                StructuredPaperAnalysis(arxiv_id=12345, title="Some Title")  # type: ignore
+            )
+
+    def test_empty_title_fails_validation(self):
+        with self.assertRaises(ValueError):
+            validate_structured_analysis(
+                StructuredPaperAnalysis(arxiv_id="2005.11401", title="  \n  ")
+            )
+        with self.assertRaises(TypeError):
+            validate_structured_analysis(
+                StructuredPaperAnalysis(arxiv_id="2005.11401", title=None)  # type: ignore
+            )
+
+    def test_invalid_string_field_types_fail_validation(self):
+        base_kwargs = {"arxiv_id": "2005.11401", "title": "Valid Title"}
+        invalid_fields = [
+            ("research_problem", 123),
+            ("motivation", ["invalid", "list"]),
+            ("methodology", {"nested": "dict"}),
+            ("model_architecture", True),
+        ]
+        for field_name, invalid_val in invalid_fields:
+            with self.assertRaises(TypeError):
+                validate_structured_analysis(
+                    StructuredPaperAnalysis(**{**base_kwargs, field_name: invalid_val})
+                )
+
+    def test_invalid_collection_types_fail_validation(self):
+        base_kwargs = {"arxiv_id": "2005.11401", "title": "Valid Title"}
+        collection_field_names = [
+            "key_contributions",
+            "datasets_benchmarks",
+            "key_findings",
+            "quantitative_results",
+            "limitations",
+            "open_questions",
+            "technical_concepts",
+        ]
+        for field_name in collection_field_names:
+            # String instead of list
+            with self.assertRaises(TypeError):
+                validate_structured_analysis(
+                    StructuredPaperAnalysis(**{**base_kwargs, field_name: "not-a-list"})
+                )
+            # Integer instead of list
+            with self.assertRaises(TypeError):
+                validate_structured_analysis(
+                    StructuredPaperAnalysis(**{**base_kwargs, field_name: 999})
+                )
+
+    def test_collection_item_types_and_empty_item_validation(self):
+        base_kwargs = {"arxiv_id": "2005.11401", "title": "Valid Title"}
+        # List with non-string item
+        with self.assertRaises(TypeError):
+            validate_structured_analysis(
+                StructuredPaperAnalysis(**{**base_kwargs, "key_contributions": ["Valid", 123]})
+            )
+        # List with empty/whitespace item
+        with self.assertRaises(ValueError):
+            validate_structured_analysis(
+                StructuredPaperAnalysis(**{**base_kwargs, "technical_concepts": ["Concept 1", "  "]})
+            )
+
+    def test_validate_structured_analysis_type_check(self):
+        with self.assertRaises(TypeError):
+            validate_structured_analysis("not a StructuredPaperAnalysis instance")  # type: ignore
+        with self.assertRaises(TypeError):
+            validate_structured_analysis({"arxiv_id": "2005.11401", "title": "Dict"})  # type: ignore
+
+    def test_serialization_to_dict_and_from_dict_roundtrip(self):
+        original = StructuredPaperAnalysis(
+            arxiv_id="2005.11401",
+            title="Retrieval-Augmented Generation for Knowledge-Intensive NLP Tasks",
+            research_problem="Improving factual knowledge generation in neural LLMs.",
+            motivation="Reducing hallucinations.",
+            methodology="RAG neural seq2seq architecture.",
+            model_architecture="DPR + BART.",
+            key_contributions=["End-to-end RAG training."],
+            datasets_benchmarks=["Natural Questions"],
+            key_findings=["Higher factual precision."],
+            quantitative_results=["44.5 EM on NQ."],
+            limitations=["Inference latency."],
+            open_questions=["Multi-modal extensions."],
+            technical_concepts=["RAG", "DPR"],
+        )
+        as_dict = original.to_dict()
+        self.assertIsInstance(as_dict, dict)
+        self.assertEqual(as_dict["arxiv_id"], "2005.11401")
+        self.assertEqual(as_dict["key_contributions"], ["End-to-end RAG training."])
+
+        reconstructed = StructuredPaperAnalysis.from_dict(as_dict)
+        self.assertEqual(reconstructed.arxiv_id, original.arxiv_id)
+        self.assertEqual(reconstructed.title, original.title)
+        self.assertEqual(reconstructed.research_problem, original.research_problem)
+        self.assertEqual(reconstructed.key_contributions, original.key_contributions)
+        self.assertEqual(reconstructed.datasets_benchmarks, original.datasets_benchmarks)
+        self.assertEqual(reconstructed.technical_concepts, original.technical_concepts)
+
+    def test_from_dict_with_invalid_payload_raises_errors(self):
+        with self.assertRaises(TypeError):
+            StructuredPaperAnalysis.from_dict("not-a-dict")  # type: ignore
+        with self.assertRaises(ValueError):
+            StructuredPaperAnalysis.from_dict({"arxiv_id": "", "title": "Some Title"})
+
+
 if __name__ == "__main__":
     unittest.main()
+
