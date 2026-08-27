@@ -1,8 +1,8 @@
 """Data models and validation for scientific papers in the Scientific Domain Expert Chatbot.
 """
 
-from dataclasses import dataclass, field
-from typing import List, Optional
+from dataclasses import asdict, dataclass, field
+from typing import Any, Dict, List, Optional
 
 
 @dataclass
@@ -103,3 +103,107 @@ def validate_paper(paper: ScientificPaper) -> None:
                 raise TypeError(f"Concept at index {idx} must be a string, got {type(concept).__name__}")
             if not concept.strip():
                 raise ValueError(f"Concept at index {idx} cannot be empty or whitespace-only.")
+
+
+@dataclass
+class StructuredPaperAnalysis:
+    """Structured data model representing the extracted research understanding of a scientific paper."""
+
+    arxiv_id: str
+    title: str
+    research_problem: str = ""
+    motivation: str = ""
+    methodology: str = ""
+    model_architecture: str = ""
+    key_contributions: List[str] = field(default_factory=list)
+    datasets_benchmarks: List[str] = field(default_factory=list)
+    key_findings: List[str] = field(default_factory=list)
+    quantitative_results: List[str] = field(default_factory=list)
+    limitations: List[str] = field(default_factory=list)
+    open_questions: List[str] = field(default_factory=list)
+    technical_concepts: List[str] = field(default_factory=list)
+
+    def to_dict(self) -> "Dict[str, Any]":
+        """Convert the structured analysis to a dictionary."""
+        return asdict(self)
+
+    @classmethod
+    def from_dict(cls, data: "Dict[str, Any]") -> "StructuredPaperAnalysis":
+        """Construct and validate a StructuredPaperAnalysis instance from a dictionary."""
+        if not isinstance(data, dict):
+            raise TypeError(f"Expected dictionary for StructuredPaperAnalysis, got {type(data).__name__}")
+
+        instance = cls(
+            arxiv_id=data.get("arxiv_id", ""),
+            title=data.get("title", ""),
+            research_problem=data.get("research_problem", ""),
+            motivation=data.get("motivation", ""),
+            methodology=data.get("methodology", ""),
+            model_architecture=data.get("model_architecture", ""),
+            key_contributions=list(data.get("key_contributions") or []),
+            datasets_benchmarks=list(data.get("datasets_benchmarks") or []),
+            key_findings=list(data.get("key_findings") or []),
+            quantitative_results=list(data.get("quantitative_results") or []),
+            limitations=list(data.get("limitations") or []),
+            open_questions=list(data.get("open_questions") or []),
+            technical_concepts=list(data.get("technical_concepts") or []),
+        )
+        validate_structured_analysis(instance)
+        return instance
+
+
+def validate_structured_analysis(analysis: StructuredPaperAnalysis) -> None:
+    """Validate that a StructuredPaperAnalysis instance satisfies all schema invariants.
+
+    Args:
+        analysis (StructuredPaperAnalysis): The analysis instance to validate.
+
+    Raises:
+        TypeError: If fields do not have the expected types.
+        ValueError: If required fields are empty, whitespace-only, or contain invalid contents.
+    """
+    if not isinstance(analysis, StructuredPaperAnalysis):
+        raise TypeError(f"Expected StructuredPaperAnalysis instance, got {type(analysis).__name__}")
+
+    # 1. Validate arxiv_id
+    if not isinstance(analysis.arxiv_id, str):
+        raise TypeError(f"arxiv_id must be a string, got {type(analysis.arxiv_id).__name__}")
+    if not analysis.arxiv_id.strip():
+        raise ValueError("arxiv_id cannot be empty or whitespace-only.")
+
+    # 2. Validate title
+    if not isinstance(analysis.title, str):
+        raise TypeError(f"title must be a string, got {type(analysis.title).__name__}")
+    if not analysis.title.strip():
+        raise ValueError("title cannot be empty or whitespace-only.")
+
+    # 3. Validate string fields
+    string_fields = (
+        ("research_problem", analysis.research_problem),
+        ("motivation", analysis.motivation),
+        ("methodology", analysis.methodology),
+        ("model_architecture", analysis.model_architecture),
+    )
+    for field_name, val in string_fields:
+        if not isinstance(val, str):
+            raise TypeError(f"{field_name} must be a string, got {type(val).__name__}")
+
+    # 4. Validate collection fields
+    collection_fields = (
+        ("key_contributions", analysis.key_contributions),
+        ("datasets_benchmarks", analysis.datasets_benchmarks),
+        ("key_findings", analysis.key_findings),
+        ("quantitative_results", analysis.quantitative_results),
+        ("limitations", analysis.limitations),
+        ("open_questions", analysis.open_questions),
+        ("technical_concepts", analysis.technical_concepts),
+    )
+    for field_name, col in collection_fields:
+        if not isinstance(col, list):
+            raise TypeError(f"{field_name} must be a list of strings, got {type(col).__name__}")
+        for idx, item in enumerate(col):
+            if not isinstance(item, str):
+                raise TypeError(f"Item in {field_name} at index {idx} must be a string, got {type(item).__name__}")
+            if not item.strip():
+                raise ValueError(f"Item in {field_name} at index {idx} cannot be empty or whitespace-only.")
+
