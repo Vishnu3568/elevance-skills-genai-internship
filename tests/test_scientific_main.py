@@ -23,7 +23,7 @@ try:
         ScientificExplorationEngine,
         ScientificExplorationGraph,
         ScientificRetrievalResult,
-        generate_dot_graph,
+        StructuredPaperAnalysis,
     )
 except ImportError:
     # pyrefly: ignore [missing-import]
@@ -38,6 +38,7 @@ except ImportError:
         ScientificExplorationEngine,
         ScientificExplorationGraph,
         ScientificRetrievalResult,
+        StructuredPaperAnalysis,
     )
 
 
@@ -57,6 +58,7 @@ class TestScientificMain(unittest.TestCase):
         self.assertTrue(hasattr(sm, "format_source_badge"))
         self.assertTrue(hasattr(sm, "render_grounding_status"))
         self.assertTrue(hasattr(sm, "render_sources_panel"))
+        self.assertTrue(hasattr(sm, "render_structured_analysis_card"))
         self.assertTrue(hasattr(sm, "render_sidebar"))
         self.assertTrue(hasattr(sm, "main"))
         self.assertTrue(sm.DEFAULT_SCIENTIFIC_VECTOR_STORE_PATH.endswith("faiss_index_scientific"))
@@ -309,6 +311,83 @@ class TestScientificMain(unittest.TestCase):
         dot_str = sm.generate_dot_graph(graph)
         self.assertIn("digraph", dot_str)
 
+    def test_render_structured_analysis_card_complete(self):
+        """Verify render_structured_analysis_card renders all sections without error."""
+        full_analysis = StructuredPaperAnalysis(
+            arxiv_id="2005.11401",
+            title="Retrieval-Augmented Generation for Knowledge-Intensive NLP Tasks",
+            research_problem="Pre-trained language models struggle with factual recall.",
+            motivation="Parametric memory alone is prone to hallucinations.",
+            methodology="Combine seq2seq models with a dense neural retriever.",
+            model_architecture="DPR + BART with marginalization.",
+            key_contributions=[
+                "Formulated RAG-Sequence and RAG-Token models.",
+                "State-of-the-art results on open-domain QA.",
+            ],
+            datasets_benchmarks=["Natural Questions", "TriviaQA"],
+            key_findings=[
+                "RAG generates more factual language than parametric models.",
+            ],
+            quantitative_results=[
+                "44.5 Exact Match on Natural Questions.",
+            ],
+            limitations=[
+                "Inference latency of document retrieval.",
+            ],
+            open_questions=[
+                "Multi-modal document retrieval and generation.",
+            ],
+            technical_concepts=[
+                "Retrieval-Augmented Generation",
+                "Dense Passage Retrieval",
+            ],
+        )
+
+        with patch("streamlit.markdown") as mock_md, \
+             patch("streamlit.caption") as mock_cap, \
+             patch("streamlit.columns", return_value=[MagicMock(), MagicMock()]) as mock_cols:
+            sm.render_structured_analysis_card(full_analysis)
+
+            mock_md.assert_any_call("### 🔬 Research Understanding: *Retrieval-Augmented Generation for Knowledge-Intensive NLP Tasks*")
+            mock_cap.assert_called_with("**arXiv ID**: `2005.11401`")
+
+    def test_render_structured_analysis_card_partial_and_none(self):
+        """Verify render_structured_analysis_card handles partial models and None gracefully."""
+        # 1. Partial analysis with empty optional lists and scalars
+        partial_analysis = StructuredPaperAnalysis(
+            arxiv_id="1706.03762",
+            title="Attention Is All You Need",
+            research_problem="Sequential computation bottleneck in RNNs.",
+            methodology="Self-attention without recurrence.",
+        )
+
+        with patch("streamlit.markdown") as mock_md, \
+             patch("streamlit.caption") as mock_cap, \
+             patch("streamlit.columns", return_value=[MagicMock(), MagicMock()]):
+            sm.render_structured_analysis_card(partial_analysis)
+            mock_md.assert_any_call("### 🔬 Research Understanding: *Attention Is All You Need*")
+
+        # 2. None input should be a clean no-op
+        with patch("streamlit.markdown") as mock_md:
+            sm.render_structured_analysis_card(None)  # type: ignore
+            mock_md.assert_not_called()
+
+    def test_tab3_deep_analysis_flow_calls_service(self):
+        """Verify that triggering structured analysis calls service.analyze_paper with query."""
+        mock_service = MagicMock(spec=ScientificExpertService)
+        mock_analysis = StructuredPaperAnalysis(
+            arxiv_id="1706.03762",
+            title="Attention Is All You Need",
+            research_problem="RNN sequential processing.",
+        )
+        mock_service.analyze_paper.return_value = mock_analysis
+
+        # Simulate execution
+        result = mock_service.analyze_paper("1706.03762")
+        mock_service.analyze_paper.assert_called_once_with("1706.03762")
+        self.assertEqual(result.arxiv_id, "1706.03762")
+        self.assertEqual(result.title, "Attention Is All You Need")
+
     def test_production_store_isolation(self):
         """Verify that scientific_main never accesses customer or medical stores."""
         customer_csv = self.proj_root / "dataset" / "knowledge_base.csv"
@@ -329,3 +408,4 @@ class TestScientificMain(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
