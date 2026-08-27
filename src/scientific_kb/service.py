@@ -39,6 +39,14 @@ try:
         ScientificRetriever,
         format_retrieval_context,
     )
+    # pyrefly: ignore [missing-import]
+    from src.scientific_kb.models import (  # type: ignore
+        StructuredPaperAnalysis,
+    )
+    # pyrefly: ignore [missing-import]
+    from src.scientific_kb.understanding import (  # type: ignore
+        PaperUnderstandingService,
+    )
 except ImportError:
     # pyrefly: ignore [missing-import]
     from scientific_kb.conversation import (  # type: ignore
@@ -68,6 +76,14 @@ except ImportError:
         ScientificRetrievalResult,
         ScientificRetriever,
         format_retrieval_context,
+    )
+    # pyrefly: ignore [missing-import]
+    from scientific_kb.models import (  # type: ignore
+        StructuredPaperAnalysis,
+    )
+    # pyrefly: ignore [missing-import]
+    from scientific_kb.understanding import (  # type: ignore
+        PaperUnderstandingService,
     )
 
 # Intent Constants
@@ -239,6 +255,7 @@ class ScientificExpertService:
         retriever: ScientificRetriever,
         generator: ScientificGenerator,
         session: Optional[ScientificConversationSession] = None,
+        understanding_service: Optional[PaperUnderstandingService] = None,
     ):
         """Initialize the ScientificExpertService.
 
@@ -246,6 +263,7 @@ class ScientificExpertService:
             retriever (ScientificRetriever): Retriever over scientific FAISS vector store.
             generator (ScientificGenerator): Grounded answer generator.
             session (Optional[ScientificConversationSession]): Multi-turn conversation session.
+            understanding_service (Optional[PaperUnderstandingService]): Structured paper analysis service.
         """
         if retriever is None:
             raise ValueError("retriever cannot be None.")
@@ -259,6 +277,9 @@ class ScientificExpertService:
             retriever=self.retriever,
             generator=self.generator,
             default_session=self.session,
+        )
+        self.understanding_service = understanding_service or PaperUnderstandingService(
+            llm=getattr(self.generator, "llm", None)
         )
 
     def find_paper(
@@ -487,6 +508,58 @@ class ScientificExpertService:
             warning_message=val.warning_message,
             formatted_markdown=formatted_md,
         )
+
+    def analyze_paper(
+        self,
+        paper_query_or_id: str,
+        session: Optional[ScientificConversationSession] = None,
+    ) -> Optional[StructuredPaperAnalysis]:
+        """Extract structured research understanding (methodology, contributions, results, limitations) from a paper.
+
+        Args:
+            paper_query_or_id (str): Paper arXiv ID, title, or natural language query.
+            session (Optional[ScientificConversationSession]): Optional conversation session for history tracking.
+
+        Returns:
+            Optional[StructuredPaperAnalysis]: Validated structured analysis if paper is found, None otherwise.
+
+        Raises:
+            TypeError: If paper_query_or_id is not a string.
+            ValueError: If paper_query_or_id is empty or whitespace-only.
+        """
+        if not isinstance(paper_query_or_id, str):
+            raise TypeError("Paper identifier or title must be a string.")
+        if not paper_query_or_id.strip():
+            raise ValueError("Paper identifier or title cannot be empty.")
+
+        active_session = session or self.session
+        stripped_target = paper_query_or_id.strip()
+
+        # 1. Resolve paper by arXiv ID
+        target_ids = extract_cited_arxiv_ids(stripped_target)
+        if target_ids:
+            found = self.find_paper(arxiv_id=target_ids[0])
+        else:
+            # 2. Resolve paper by title or semantic retrieval
+            found = self.find_paper(title_query=stripped_target)
+            if not found:
+                candidates = self.retriever.retrieve(stripped_target, k=1)
+                found = candidates[0] if candidates else None
+
+        if not found:
+            return None
+
+        # 3. Delegate to PaperUnderstandingService
+        analysis = self.understanding_service.analyze_paper_structure(found)
+
+        # 4. Record interaction in active session history
+        active_session.add_user_message(f"Analyze paper: {stripped_target}")
+        active_session.add_assistant_message(
+            f"Extracted structured analysis for '{analysis.title}' (arXiv:{analysis.arxiv_id}).",
+            sources=[found],
+        )
+
+        return analysis
 
     def explain_concept(
         self,
