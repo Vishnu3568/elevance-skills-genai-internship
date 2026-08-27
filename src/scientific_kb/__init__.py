@@ -3,7 +3,12 @@
 
 try:
     # pyrefly: ignore [missing-import]
-    from src.scientific_kb.models import ScientificPaper, validate_paper  # type: ignore
+    from src.scientific_kb.models import (  # type: ignore
+        ScientificPaper,
+        StructuredPaperAnalysis,
+        validate_paper,
+        validate_structured_analysis,
+    )
     # pyrefly: ignore [missing-import]
     from src.scientific_kb.parser import (  # type: ignore
         SUPPORTED_CATEGORIES,
@@ -83,9 +88,20 @@ try:
         TimelineEntry,
         extract_concepts_from_text,
     )
+    # pyrefly: ignore [missing-import]
+    from src.scientific_kb.understanding import (  # type: ignore
+        PaperUnderstandingService,
+        STRUCTURED_EXTRACTION_PROMPT_TEMPLATE,
+        build_paper_understanding_prompt,
+    )
 except ImportError:
     # pyrefly: ignore [missing-import]
-    from scientific_kb.models import ScientificPaper, validate_paper  # type: ignore
+    from scientific_kb.models import (  # type: ignore
+        ScientificPaper,
+        StructuredPaperAnalysis,
+        validate_paper,
+        validate_structured_analysis,
+    )
     # pyrefly: ignore [missing-import]
     from scientific_kb.parser import (  # type: ignore
         SUPPORTED_CATEGORIES,
@@ -165,10 +181,18 @@ except ImportError:
         TimelineEntry,
         extract_concepts_from_text,
     )
+    # pyrefly: ignore [missing-import]
+    from scientific_kb.understanding import (  # type: ignore
+        PaperUnderstandingService,
+        STRUCTURED_EXTRACTION_PROMPT_TEMPLATE,
+        build_paper_understanding_prompt,
+    )
 
 __all__ = [
     "ScientificPaper",
+    "StructuredPaperAnalysis",
     "validate_paper",
+    "validate_structured_analysis",
     "parse_paper",
     "is_target_domain",
     "SUPPORTED_CATEGORIES",
@@ -221,4 +245,7 @@ __all__ = [
     "ScientificExplorationGraph",
     "CorpusSummary",
     "ScientificExplorationEngine",
+    "PaperUnderstandingService",
+    "STRUCTURED_EXTRACTION_PROMPT_TEMPLATE",
+    "build_paper_understanding_prompt",
 ]
