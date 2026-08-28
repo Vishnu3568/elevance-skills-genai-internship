@@ -440,7 +440,9 @@ class ScientificExpertService:
         session: Optional[ScientificConversationSession] = None,
     ) -> ScientificExpertResponse:
         """Generate a structured, evidence-grounded summary of a specific scientific paper."""
-        if not isinstance(paper_query_or_id, str) or not paper_query_or_id.strip():
+        if not isinstance(paper_query_or_id, str):
+            raise TypeError("Paper identifier or title must be a string.")
+        if not paper_query_or_id.strip():
             raise ValueError("Paper identifier or title cannot be empty.")
 
         active_session = session or self.session
@@ -483,15 +485,32 @@ class ScientificExpertService:
         context_str = format_retrieval_context(retrieved_sources)
         prompt = SUMMARY_PROMPT_TEMPLATE.format(context=context_str, query=stripped_target)
         raw_output = self.generator._invoke_llm(prompt)
+        clean_answer = raw_output.strip() if isinstance(raw_output, str) else str(raw_output).strip()
+
+        norm_ans = clean_answer.lower()
+        is_refusal_or_empty = (
+            not clean_answer
+            or "not contain sufficient evidence" in norm_ans
+            or "insufficient evidence" in norm_ans
+            or norm_ans.startswith("i don't know")
+            or norm_ans.startswith("i do not know")
+        )
 
         ans = ScientificAnswer(
             query=stripped_target,
-            answer=raw_output.strip(),
+            answer=clean_answer if clean_answer else INSUFFICIENT_EVIDENCE_PHRASE,
             sources=retrieved_sources,
-            grounded=True,
+            grounded=not is_refusal_or_empty,
             raw_response=raw_output,
         )
         val = validate_answer_grounding(ans, retrieved_sources)
+        if is_refusal_or_empty:
+            val = GroundingValidationResult(
+                is_grounded=False,
+                valid_citations=val.valid_citations,
+                unsupported_citations=val.unsupported_citations,
+                warning_message=val.warning_message or "Insufficient evidence or empty summary generated.",
+            )
         formatted_md = format_grounded_answer(ans, val)
 
         active_session.add_user_message(f"Summarize paper: {stripped_target}")
@@ -567,7 +586,9 @@ class ScientificExpertService:
         session: Optional[ScientificConversationSession] = None,
     ) -> ScientificExpertResponse:
         """Generate a grounded, two-tiered (technical & intuitive) explanation of an AI/ML concept."""
-        if not isinstance(concept, str) or not concept.strip():
+        if not isinstance(concept, str):
+            raise TypeError("Concept name must be a string.")
+        if not concept.strip():
             raise ValueError("Concept name cannot be empty.")
 
         active_session = session or self.session
@@ -575,20 +596,65 @@ class ScientificExpertService:
 
         retrieved_sources = self.retriever.retrieve(stripped_concept, k=3)
         if not retrieved_sources:
-            return self.ask(f"Explain {stripped_concept}", session=active_session)
+            ans = ScientificAnswer(
+                query=stripped_concept,
+                answer=INSUFFICIENT_EVIDENCE_PHRASE,
+                sources=[],
+                grounded=False,
+                raw_response=INSUFFICIENT_EVIDENCE_PHRASE,
+            )
+            val = GroundingValidationResult(
+                is_grounded=False,
+                valid_citations=[],
+                unsupported_citations=[],
+                warning_message=f"No supporting scientific literature evidence was retrieved for concept '{stripped_concept}'.",
+            )
+            formatted_md = format_grounded_answer(ans, val)
+
+            active_session.add_user_message(f"Explain concept: {stripped_concept}")
+            active_session.add_assistant_message(ans.answer, sources=[])
+
+            return ScientificExpertResponse(
+                query=stripped_concept,
+                condensed_query=stripped_concept,
+                answer=ans.answer,
+                intent=INTENT_CONCEPT_EXPLANATION,
+                sources=[],
+                citations=[],
+                grounded=False,
+                warning_message=val.warning_message,
+                formatted_markdown=formatted_md,
+            )
 
         context_str = format_retrieval_context(retrieved_sources)
         prompt = CONCEPT_EXPLANATION_PROMPT_TEMPLATE.format(context=context_str, concept=stripped_concept)
         raw_output = self.generator._invoke_llm(prompt)
+        clean_answer = raw_output.strip() if isinstance(raw_output, str) else str(raw_output).strip()
+
+        norm_ans = clean_answer.lower()
+        is_refusal_or_empty = (
+            not clean_answer
+            or "not contain sufficient evidence" in norm_ans
+            or "insufficient evidence" in norm_ans
+            or norm_ans.startswith("i don't know")
+            or norm_ans.startswith("i do not know")
+        )
 
         ans = ScientificAnswer(
             query=stripped_concept,
-            answer=raw_output.strip(),
+            answer=clean_answer if clean_answer else INSUFFICIENT_EVIDENCE_PHRASE,
             sources=retrieved_sources,
-            grounded=True,
+            grounded=not is_refusal_or_empty,
             raw_response=raw_output,
         )
         val = validate_answer_grounding(ans, retrieved_sources)
+        if is_refusal_or_empty:
+            val = GroundingValidationResult(
+                is_grounded=False,
+                valid_citations=val.valid_citations,
+                unsupported_citations=val.unsupported_citations,
+                warning_message=val.warning_message or "Insufficient evidence or empty explanation generated.",
+            )
         formatted_md = format_grounded_answer(ans, val)
 
         active_session.add_user_message(f"Explain concept: {stripped_concept}")
