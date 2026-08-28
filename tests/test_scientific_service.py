@@ -98,6 +98,24 @@ class FakeExpertLLM:
 
         # Summary prompt
         if "GROUNDED PAPER SUMMARY:" in prompt_str:
+            if "2005.11401" in prompt_str or "Retrieval-Augmented" in prompt_str:
+                return AIMessage(
+                    content=(
+                        "### 📄 Paper Information\n"
+                        "- Title: Retrieval-Augmented Generation for Knowledge-Intensive NLP Tasks (2005.11401)\n"
+                        "- Authors: Patrick Lewis et al.\n\n"
+                        "### 📝 Executive Summary\n"
+                        "Combines parametric memory with non-parametric retrieval for factual QA.\n\n"
+                        "### 💡 Key Contributions\n"
+                        "1. RAG-Token and RAG-Sequence architectures\n2. End-to-end differentiable retrieval-generation\n\n"
+                        "### 🔬 Method & Architecture\n"
+                        "Dense passage retriever combined with BART seq2seq generator.\n\n"
+                        "### 📊 Important Findings & Results\n"
+                        "State of the art on Open-Domain QA.\n\n"
+                        "### ⚠️ Limitations & Open Challenges\n"
+                        "Inference latency due to dense retrieval."
+                    )
+                )
             return AIMessage(
                 content=(
                     "### 📄 Paper Information\n"
@@ -354,6 +372,9 @@ class TestScientificService(unittest.TestCase):
         with self.assertRaises(ValueError):
             self.service.explain_concept("")
 
+        with self.assertRaises(TypeError):
+            self.service.explain_concept(12345)  # type: ignore
+
         # Empty compare
         with self.assertRaises(ValueError):
             self.service.compare("LoRA", "   ")
@@ -427,6 +448,129 @@ class TestScientificService(unittest.TestCase):
         self.assertIn("Analyze paper: 1706.03762", updated_history[-2].content)
         self.assertEqual(updated_history[-1].role, "assistant")
         self.assertIn("Extracted structured analysis for 'Attention Is All You Need'", updated_history[-1].content)
+
+    def test_summarize_paper_by_title(self):
+        """Verify that summarize_paper resolves by title and generates a structured summary."""
+        resp = self.service.summarize_paper("Attention Is All You Need")
+        self.assertIsInstance(resp, ScientificExpertResponse)
+        self.assertEqual(resp.intent, INTENT_SUMMARY)
+        self.assertIn("### 📄 Paper Information", resp.answer)
+        self.assertIn("### 💡 Key Contributions", resp.answer)
+        self.assertTrue(resp.grounded)
+        self.assertEqual(resp.sources[0].title, "Attention Is All You Need")
+
+    def test_summarize_paper_by_versioned_arxiv_id(self):
+        """Verify that summarize_paper resolves versioned arXiv IDs like 2005.11401v2."""
+        resp = self.service.summarize_paper("2005.11401v2")
+        self.assertIsInstance(resp, ScientificExpertResponse)
+        self.assertEqual(resp.intent, INTENT_SUMMARY)
+        self.assertTrue(resp.grounded)
+        self.assertEqual(resp.sources[0].arxiv_id, "2005.11401")
+
+    def test_summarize_paper_input_validation_types(self):
+        """Verify that summarize_paper enforces TypeError for non-strings and ValueError for empty strings."""
+        with self.assertRaises(TypeError):
+            self.service.summarize_paper(None)  # type: ignore
+
+        with self.assertRaises(TypeError):
+            self.service.summarize_paper(12345)  # type: ignore
+
+        with self.assertRaises(ValueError):
+            self.service.summarize_paper("")
+
+        with self.assertRaises(ValueError):
+            self.service.summarize_paper("   ")
+
+    def test_summarize_paper_refusal_detection(self):
+        """Verify that an LLM refusal / insufficient-evidence phrase marks the summary as ungrounded."""
+        refusal_llm = FakeExpertLLM()
+        refusal_llm.invoke = lambda prompt: AIMessage(  # type: ignore
+            content="The provided scientific papers do not contain sufficient evidence to answer this question."
+        )
+        refusal_service = ScientificExpertService(
+            retriever=self.retriever,
+            generator=ScientificGenerator(llm=refusal_llm),
+        )
+        resp = refusal_service.summarize_paper("1706.03762")
+        self.assertIsInstance(resp, ScientificExpertResponse)
+        self.assertFalse(resp.grounded)
+        self.assertIsNotNone(resp.warning_message)
+
+    def test_summarize_paper_unsupported_citation_warning(self):
+        """Verify that hallucinated citations in a summary produce an ungrounded warning."""
+        hallucinating_llm = FakeExpertLLM()
+        hallucinating_llm.invoke = lambda prompt: AIMessage(  # type: ignore
+            content="### 📄 Paper Information\n- Paper: Attention (1706.03762)\n\nCites unsupported paper 9999.88888 as evidence."
+        )
+        hallucinating_service = ScientificExpertService(
+            retriever=self.retriever,
+            generator=ScientificGenerator(llm=hallucinating_llm),
+        )
+        resp = hallucinating_service.summarize_paper("1706.03762")
+        self.assertIsInstance(resp, ScientificExpertResponse)
+        self.assertFalse(resp.grounded)
+        self.assertIn("9999.88888", str(resp.warning_message))
+
+    def test_explain_concept_input_validation_types(self):
+        """Verify that explain_concept enforces TypeError for non-strings and ValueError for empty strings."""
+        with self.assertRaises(TypeError):
+            self.service.explain_concept(None)  # type: ignore
+
+        with self.assertRaises(TypeError):
+            self.service.explain_concept(12345)  # type: ignore
+
+        with self.assertRaises(ValueError):
+            self.service.explain_concept("")
+
+        with self.assertRaises(ValueError):
+            self.service.explain_concept("   ")
+
+    def test_explain_concept_no_retrieval_evidence_safe_fallback(self):
+        """Verify that when no scientific papers are retrieved, explain_concept returns safely without recursion."""
+        empty_retriever = ScientificRetriever(vector_store=self.retriever.vector_store)
+        empty_retriever.retrieve = lambda query, k=3: []  # type: ignore
+
+        safe_service = ScientificExpertService(
+            retriever=empty_retriever,
+            generator=self.generator,
+        )
+        resp = safe_service.explain_concept("Quantum Superposition in NLP")
+        self.assertIsInstance(resp, ScientificExpertResponse)
+        self.assertEqual(resp.intent, INTENT_CONCEPT_EXPLANATION)
+        self.assertFalse(resp.grounded)
+        self.assertEqual(len(resp.sources), 0)
+        self.assertIsNotNone(resp.warning_message)
+        self.assertIn("No supporting scientific literature evidence", str(resp.warning_message))
+
+    def test_explain_concept_refusal_detection(self):
+        """Verify that an LLM refusal phrase in concept explanation marks the response as ungrounded."""
+        refusal_llm = FakeExpertLLM()
+        refusal_llm.invoke = lambda prompt: AIMessage(  # type: ignore
+            content="The provided scientific papers do not contain sufficient evidence to explain this concept."
+        )
+        refusal_service = ScientificExpertService(
+            retriever=self.retriever,
+            generator=ScientificGenerator(llm=refusal_llm),
+        )
+        resp = refusal_service.explain_concept("Multi-Head Attention")
+        self.assertIsInstance(resp, ScientificExpertResponse)
+        self.assertFalse(resp.grounded)
+        self.assertIsNotNone(resp.warning_message)
+
+    def test_explain_concept_unsupported_citation_warning(self):
+        """Verify that hallucinated citations in concept explanation produce an ungrounded warning."""
+        hallucinating_llm = FakeExpertLLM()
+        hallucinating_llm.invoke = lambda prompt: AIMessage(  # type: ignore
+            content="### 🧠 Concept: Multi-Head Attention\n\n#### 🔬 Technical Explanation\nIntroduced in 9999.88888 as a scalable mechanism."
+        )
+        hallucinating_service = ScientificExpertService(
+            retriever=self.retriever,
+            generator=ScientificGenerator(llm=hallucinating_llm),
+        )
+        resp = hallucinating_service.explain_concept("Multi-Head Attention")
+        self.assertIsInstance(resp, ScientificExpertResponse)
+        self.assertFalse(resp.grounded)
+        self.assertIn("9999.88888", str(resp.warning_message))
 
     def test_service_isolation_from_production_stores(self):
         """Verify that ScientificExpertService never alters customer or medical stores."""
