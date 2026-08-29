@@ -22,6 +22,7 @@ try:
         ScientificGenerator,
         ScientificExpertService,
         ScientificExpertResponse,
+        ScientificConversationSession,
         detect_scientific_intent,
         INTENT_GENERAL,
         INTENT_PAPER_LOOKUP,
@@ -40,6 +41,7 @@ except ImportError:
         ScientificGenerator,
         ScientificExpertService,
         ScientificExpertResponse,
+        ScientificConversationSession,
         detect_scientific_intent,
         INTENT_GENERAL,
         INTENT_PAPER_LOOKUP,
@@ -94,6 +96,12 @@ class FakeExpertLLM:
         if "STANDALONE QUESTION:" in prompt_str:
             if "its limitations" in prompt_str.lower():
                 return AIMessage(content="What are the limitations of Retrieval-Augmented Generation (2005.11401)?")
+            if "compare" in prompt_str.lower() and ("it" in prompt_str.lower() or "rnn" in prompt_str.lower()):
+                return AIMessage(content="Compare Transformers (1706.03762) with RNNs.")
+            if "masking" in prompt_str.lower() or "bert" in prompt_str.lower():
+                return AIMessage(content="Explain the masked language model mechanism in BERT.")
+            if "summarize" in prompt_str.lower() and ("this" in prompt_str.lower() or "paper" in prompt_str.lower()):
+                return AIMessage(content="Summarize the paper Attention Is All You Need (1706.03762).")
             return AIMessage(content="Explain self-attention in Transformer models (1706.03762).")
 
         # Summary prompt
@@ -136,6 +144,20 @@ class FakeExpertLLM:
 
         # Comparison prompt
         if "GROUNDED TECHNICAL COMPARISON:" in prompt_str:
+            if "transformer" in prompt_str.lower() or "rnn" in prompt_str.lower():
+                return AIMessage(
+                    content=(
+                        "### ⚖️ Scientific Comparison\n"
+                        "Comparison between Transformers (1706.03762) and RNNs.\n\n"
+                        "### 📊 Comparative Analysis\n"
+                        "| Dimension | Transformers | RNNs |\n"
+                        "|---|---|---|\n"
+                        "| Parallelization | O(1) sequential ops | O(n) sequential ops |\n"
+                        "| Long-range dependencies | Direct self-attention | Vanishing gradients |\n\n"
+                        "### 🎯 Key Takeaways & Recommendations\n"
+                        "Use Transformers for scalable sequence modeling."
+                    )
+                )
             return AIMessage(
                 content=(
                     "### ⚖️ Scientific Comparison\n"
@@ -152,7 +174,20 @@ class FakeExpertLLM:
 
         # Concept explanation prompt
         if "GROUNDED CONCEPT EXPLANATION:" in prompt_str:
-            if "2005.11401" in prompt_str or "retrieval-augmented" in prompt_str.lower() or "rag" in prompt_str.lower():
+            concept_section = prompt_str.split("CONCEPT TO EXPLAIN:")[-1].lower() if "CONCEPT TO EXPLAIN:" in prompt_str else prompt_str.lower()
+            if "bert" in concept_section or "mask" in concept_section:
+                return AIMessage(
+                    content=(
+                        "### 🧠 Concept: Masked Language Modeling\n\n"
+                        "#### 🔬 Technical Explanation\n"
+                        "Randomly masks tokens and trains bidirectional representations as in 1706.03762.\n\n"
+                        "#### 💡 Intuitive Explanation\n"
+                        "Fill-in-the-blank cloze task to learn context from both directions simultaneously.\n\n"
+                        "#### 🚀 Why It Matters in Modern AI\n"
+                        "Enables deep contextual representations for pre-trained foundation models."
+                    )
+                )
+            if "retrieval" in concept_section or "rag" in concept_section or "2005.11401" in concept_section:
                 return AIMessage(
                     content=(
                         "### 🧠 Concept: Retrieval-Augmented Generation\n\n"
@@ -571,6 +606,93 @@ class TestScientificService(unittest.TestCase):
         self.assertIsInstance(resp, ScientificExpertResponse)
         self.assertFalse(resp.grounded)
         self.assertIn("9999.88888", str(resp.warning_message))
+
+    def test_followup_comparison_resolves_context(self):
+        """Verify that follow-up comparison resolves pronouns to previous conversation context."""
+        self.service.clear_session()
+        resp1 = self.service.ask("Explain Transformers.")
+        self.assertIn("1706.03762", resp1.answer)
+
+        resp2 = self.service.ask("Compare it with RNNs.")
+        self.assertEqual(resp2.query, "Compare it with RNNs.")
+        self.assertIn("Transformers", resp2.condensed_query)
+        self.assertEqual(resp2.intent, INTENT_COMPARISON)
+        self.assertTrue(resp2.grounded)
+        self.assertIn("Scientific Comparison", resp2.answer)
+        self.assertEqual(self.service.get_session_messages()[-2].content, "Compare it with RNNs.")
+
+    def test_followup_concept_explanation_resolves_context(self):
+        """Verify that follow-up concept explanation resolves pronouns to previous conversation entity."""
+        self.service.clear_session()
+        resp1 = self.service.ask("What is BERT?")
+        self.assertIsNotNone(resp1.answer)
+
+        resp2 = self.service.ask("Explain its masking mechanism")
+        self.assertEqual(resp2.query, "Explain its masking mechanism")
+        self.assertIn("BERT", resp2.condensed_query)
+        self.assertEqual(resp2.intent, INTENT_CONCEPT_EXPLANATION)
+        self.assertTrue(resp2.grounded)
+        self.assertIn("Concept: Masked Language Modeling", resp2.answer)
+        self.assertEqual(self.service.get_session_messages()[-2].content, "Explain its masking mechanism")
+
+    def test_followup_summary_resolves_context(self):
+        """Verify that follow-up paper summarization resolves paper reference to previous turn."""
+        self.service.clear_session()
+        resp1 = self.service.ask("Tell me about paper 1706.03762")
+        self.assertIsNotNone(resp1.answer)
+
+        resp2 = self.service.ask("Summarize this paper")
+        self.assertEqual(resp2.query, "Summarize this paper")
+        self.assertIn("1706.03762", resp2.condensed_query)
+        self.assertEqual(resp2.intent, INTENT_SUMMARY)
+        self.assertTrue(resp2.grounded)
+        self.assertIn("Paper Information", resp2.answer)
+        self.assertEqual(self.service.get_session_messages()[-2].content, "Summarize this paper")
+
+    def test_multi_session_context_isolation(self):
+        """Verify that concurrent separate sessions do not bleed conversation context across sessions."""
+        session_a = ScientificConversationSession("session_a")
+        session_b = ScientificConversationSession("session_b")
+
+        # Turn 1 in each session
+        self.service.ask("Explain Transformers.", session=session_a)
+        self.service.ask("What is BERT?", session=session_b)
+
+        # Turn 2 follow-ups
+        resp_a = self.service.ask("Compare it with RNNs.", session=session_a)
+        resp_b = self.service.ask("Explain its masking mechanism", session=session_b)
+
+        # Session A must resolve to Transformers and never mention BERT
+        self.assertIn("Transformers", resp_a.condensed_query)
+        self.assertNotIn("BERT", resp_a.condensed_query)
+
+        # Session B must resolve to BERT and never mention Transformers
+        self.assertIn("BERT", resp_b.condensed_query)
+        self.assertNotIn("Transformers", resp_b.condensed_query)
+
+        # Session message counts are isolated
+        self.assertEqual(len(session_a.get_messages()), 4)
+        self.assertEqual(len(session_b.get_messages()), 4)
+
+    def test_followup_with_empty_history_is_safe(self):
+        """Verify that asking a follow-up-like query with no history does not crash or loop."""
+        empty_session = ScientificConversationSession("empty_session")
+        resp = self.service.ask("Compare it with RNNs", session=empty_session)
+        self.assertIsInstance(resp, ScientificExpertResponse)
+        self.assertEqual(resp.query, "Compare it with RNNs")
+        self.assertEqual(len(empty_session.get_messages()), 2)
+
+    def test_followup_preserves_grounding_and_sources(self):
+        """Verify that multi-turn follow-up queries retain grounded sources and citation verification."""
+        self.service.clear_session()
+        self.service.ask("Explain Retrieval-Augmented Generation.")
+        resp2 = self.service.ask("What are its limitations?")
+
+        self.assertTrue(resp2.grounded)
+        self.assertGreaterEqual(len(resp2.sources), 1)
+        self.assertGreaterEqual(len(resp2.citations), 1)
+        self.assertEqual(resp2.citations[0].arxiv_id, "2005.11401")
+        self.assertIn("2005.11401", resp2.answer)
 
     def test_service_isolation_from_production_stores(self):
         """Verify that ScientificExpertService never alters customer or medical stores."""
