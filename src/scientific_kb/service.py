@@ -396,19 +396,48 @@ class ScientificExpertService:
             raise ValueError("Query cannot be empty or whitespace-only.")
 
         active_session = session or self.session
-        intent = detect_scientific_intent(stripped_query)
+
+        # 1. Condense follow-up query based on active session history before intent routing
+        condensed_query = condense_followup_query(
+            query=stripped_query,
+            chat_history=active_session.get_messages(),
+            llm=getattr(self.generator, "llm", None),
+        )
+
+        # 2. Intent detection on the resolved/condensed query
+        intent = detect_scientific_intent(condensed_query)
 
         if intent == INTENT_COMPARISON:
-            return self._handle_comparison_query(stripped_query, active_session)
+            resp = self._handle_comparison_query(condensed_query, active_session)
+            resp.query = stripped_query
+            resp.condensed_query = condensed_query
+            if active_session.messages and active_session.messages[-2].role == "user":
+                active_session.messages[-2].content = stripped_query
+            return resp
 
         if intent == INTENT_PAPER_LOOKUP:
-            return self._handle_paper_lookup_query(stripped_query, active_session)
+            resp = self._handle_paper_lookup_query(condensed_query, active_session)
+            resp.query = stripped_query
+            resp.condensed_query = condensed_query
+            if active_session.messages and active_session.messages[-2].role == "user":
+                active_session.messages[-2].content = stripped_query
+            return resp
 
         if intent == INTENT_SUMMARY:
-            return self._handle_summary_query(stripped_query, active_session)
+            resp = self._handle_summary_query(condensed_query, active_session)
+            resp.query = stripped_query
+            resp.condensed_query = condensed_query
+            if active_session.messages and active_session.messages[-2].role == "user":
+                active_session.messages[-2].content = stripped_query
+            return resp
 
         if intent == INTENT_CONCEPT_EXPLANATION:
-            return self._handle_concept_explanation_query(stripped_query, active_session)
+            resp = self._handle_concept_explanation_query(condensed_query, active_session)
+            resp.query = stripped_query
+            resp.condensed_query = condensed_query
+            if active_session.messages and active_session.messages[-2].role == "user":
+                active_session.messages[-2].content = stripped_query
+            return resp
 
         # Default General Scientific QA via Conversational Service
         conv_resp = self.conversational_service.chat(
