@@ -220,15 +220,19 @@ def condense_followup_query(
     last_topic = ""
     for m in reversed(chat_history):
         if m.role == "assistant" and m.sources:
-            last_topic = m.sources[0].title
+            if m.sources[0].arxiv_id and m.sources[0].arxiv_id not in m.sources[0].title:
+                last_topic = f"{m.sources[0].title} ({m.sources[0].arxiv_id})"
+            else:
+                last_topic = m.sources[0].title
             break
         elif m.role == "user":
-            last_topic = m.content
+            clean_user = re.sub(r"^(?:explain|what is|tell me about|how does|summarize|compare)\s+", "", m.content, flags=re.IGNORECASE).strip()
+            last_topic = clean_user if clean_user else m.content
             break
 
     if last_topic and (has_pronouns or is_short_followup):
         # Replace common pronouns with the last topic reference
-        resolved = PRONOUN_PATTERN.sub(f"the {last_topic}", stripped_query, count=1)
+        resolved = PRONOUN_PATTERN.sub(last_topic, stripped_query, count=1)
         if resolved != stripped_query:
             return resolved
         return f"{stripped_query} in {last_topic}"
