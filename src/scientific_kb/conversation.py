@@ -56,9 +56,26 @@ FOLLOW-UP QUESTION:
 STANDALONE QUESTION:"""
 
 PRONOUN_PATTERN = re.compile(
-    r"\b(it|its|this|that|these|those|they|their|the method|the model|the architecture|the approach|the paper|the algorithm)\b",
+    r"\b("
+    r"the first contribution|the second contribution|the third contribution|"
+    r"the first one|the second one|the third one|"
+    r"the key contributions|the contributions|"
+    r"the findings|the results|the datasets?|the authors?|"
+    r"the former|the latter|"
+    r"this paper|that paper|the paper|"
+    r"the method|the model|the architecture|the approach|the algorithm|"
+    r"it|its|this|that|these|those|they|their"
+    r")\b",
     re.IGNORECASE,
 )
+
+FOLLOWUP_STARTS = (
+    "what about", "how about", "and ", "why ", "how ", "who ", "which ",
+    "compare with", "limitations", "who are", "who is",
+    "which dataset", "what dataset", "what were", "what are",
+    "can you", "could you", "tell me more", "explain the", "elaborate",
+)
+
 
 
 @dataclass
@@ -181,8 +198,8 @@ def condense_followup_query(
 
     # 2. Check if query contains anaphoric pronouns or references
     has_pronouns = bool(PRONOUN_PATTERN.search(stripped_query))
-    is_short_followup = len(stripped_query.split()) <= 6 and (
-        stripped_query.lower().startswith(("what about", "how about", "and ", "why ", "how ", "compare with", "limitations"))
+    is_short_followup = len(stripped_query.split()) <= 10 and (
+        stripped_query.lower().startswith(FOLLOWUP_STARTS)
     )
 
     if not has_pronouns and not is_short_followup and llm is None:
@@ -231,10 +248,46 @@ def condense_followup_query(
             break
 
     if last_topic and (has_pronouns or is_short_followup):
-        # Replace common pronouns with the last topic reference
+        # A. Ordinals / specific contributions (e.g. "Explain the second one")
+        if re.search(r"\b(first|second|third|former|latter)\b", stripped_query, re.IGNORECASE) and (
+            "contribution" in stripped_query.lower() or "one" in stripped_query.lower() or "former" in stripped_query.lower() or "latter" in stripped_query.lower()
+        ):
+            if "contribution" in stripped_query.lower():
+                resolved = re.sub(r"\b(the\s+(?:first|second|third|former|latter)\s+contribution)\b", rf"\1 of {last_topic}", stripped_query, flags=re.IGNORECASE)
+            else:
+                resolved = re.sub(r"\b(the\s+(?:first|second|third|former|latter)(?:\s+one)?)\b", rf"the \1 contribution of {last_topic}", stripped_query, flags=re.IGNORECASE)
+                resolved = re.sub(r"\bthe\s+the\b", "the", resolved, flags=re.IGNORECASE)
+                resolved = re.sub(r"\s+one\s+contribution\b", " contribution", resolved, flags=re.IGNORECASE)
+            if resolved != stripped_query:
+                return resolved
+
+        # B. Author queries (e.g. "Who are the authors?")
+        if re.search(r"\bwho\s+(?:is|are)\s+(?:the\s+)?authors?\b", stripped_query, re.IGNORECASE):
+            return re.sub(r"\b(who\s+(?:is|are)\s+(?:the\s+)?authors?)\b", rf"\1 of {last_topic}", stripped_query, flags=re.IGNORECASE)
+
+        # C. Dataset / benchmark queries (e.g. "What dataset did they use?")
+        if re.search(r"\b(?:what|which)\s+(?:datasets?|benchmarks?)\b", stripped_query, re.IGNORECASE):
+            if re.search(r"\bthey\b", stripped_query, re.IGNORECASE):
+                return re.sub(r"\bthey\b", last_topic, stripped_query, flags=re.IGNORECASE)
+            if re.search(r"\bthe\s+datasets?\b", stripped_query, re.IGNORECASE):
+                return re.sub(r"\b(the\s+datasets?)\b", rf"\1 used in {last_topic}", stripped_query, flags=re.IGNORECASE)
+            return f"{stripped_query} in {last_topic}"
+
+        # D. Results / findings queries (e.g. "What were the results?")
+        if re.search(r"\b(?:what\s+(?:were|are)\s+)?(the\s+(?:results|findings|key findings))\b", stripped_query, re.IGNORECASE):
+            return re.sub(r"\b(the\s+(?:results|findings|key findings))\b", rf"\1 of {last_topic}", stripped_query, flags=re.IGNORECASE)
+
+        # E. Specialized pronoun combinations (e.g. "its limitations", "its advantages")
+        if re.search(r"\bits\s+(?:limitations?|advantages?|disadvantages?|contributions?|architecture|method|approach)\b", stripped_query, re.IGNORECASE):
+            resolved = re.sub(r"\bits\s+(\w+)\b", rf"the \1 of {last_topic}", stripped_query, flags=re.IGNORECASE)
+            if resolved != stripped_query:
+                return resolved
+
+        # F. Generic pronoun substitution
         resolved = PRONOUN_PATTERN.sub(last_topic, stripped_query, count=1)
         if resolved != stripped_query:
             return resolved
+
         return f"{stripped_query} in {last_topic}"
 
     return stripped_query
@@ -275,6 +328,7 @@ class ScientificConversationalService:
         concept_filter: Optional[Union[str, List[str]]] = None,
         k: Optional[int] = None,
         score_threshold: Optional[float] = None,
+        condensed_query: Optional[str] = None,
     ) -> ConversationalResponse:
         """Process a multi-turn user query, condense context, retrieve papers, and generate grounded answers.
 
@@ -287,22 +341,26 @@ class ScientificConversationalService:
             concept_filter (Optional[Union[str, List[str]]]): Concept filter.
             k (Optional[int]): Top-k papers to retrieve.
             score_threshold (Optional[float]): Score threshold.
+            condensed_query (Optional[str]): Pre-condensed standalone query if already resolved.
 
         Returns:
             ConversationalResponse: Complete response with answer, sources, validation, and Markdown.
         """
         active_session = session or self.default_session
 
-        # 1. Condense follow-up query based on session history
-        condensed_query = condense_followup_query(
-            query=query,
-            chat_history=active_session.get_messages(),
-            llm=self.generator.llm,
-        )
+        # 1. Condense follow-up query if not already pre-condensed
+        if condensed_query is not None and isinstance(condensed_query, str) and condensed_query.strip():
+            resolved_query = condensed_query.strip()
+        else:
+            resolved_query = condense_followup_query(
+                query=query,
+                chat_history=active_session.get_messages(),
+                llm=self.generator.llm,
+            )
 
         # 2. Retrieve relevant scientific papers using condensed query
         retrieval_results = self.retriever.retrieve(
-            query=condensed_query,
+            query=resolved_query,
             k=k,
             score_threshold=score_threshold,
             category_filter=category_filter,
@@ -313,7 +371,7 @@ class ScientificConversationalService:
 
         # 3. Generate grounded scientific answer
         answer = self.generator.generate_answer(
-            query=condensed_query,
+            query=resolved_query,
             retrieval_results=retrieval_results,
         )
 
@@ -329,7 +387,7 @@ class ScientificConversationalService:
 
         return ConversationalResponse(
             query=query,
-            condensed_query=condensed_query,
+            condensed_query=resolved_query,
             answer=answer,
             validation=validation,
             formatted_response=formatted_md,
