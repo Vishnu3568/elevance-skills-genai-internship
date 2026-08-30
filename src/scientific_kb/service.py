@@ -228,8 +228,8 @@ def detect_scientific_intent(query: str) -> str:
     ):
         return INTENT_COMPARISON
 
-    # 2. Paper Lookup Intent (explicit lookup phrases or arXiv IDs when not summarizing)
-    if re.search(r"\b(tell me about paper|what is paper|lookup paper|show paper|find paper)\b", q):
+    # 2. Paper Lookup Intent (explicit lookup phrases or standalone arXiv IDs)
+    if re.search(r"\b(explain paper|tell me about paper|what is paper|lookup paper|show paper|find paper)\b", q):
         return INTENT_PAPER_LOOKUP
 
     # 3. Summary Intent
@@ -449,6 +449,7 @@ class ScientificExpertService:
             concept_filter=concept_filter,
             k=k,
             score_threshold=score_threshold,
+            condensed_query=condensed_query,
         )
 
         return ScientificExpertResponse(
@@ -728,7 +729,35 @@ class ScientificExpertService:
                 combined_sources.append(res)
 
         if not combined_sources:
-            return self.ask(f"Compare {clean_a} and {clean_b}", session=active_session)
+            ans = ScientificAnswer(
+                query=f"Compare {clean_a} vs {clean_b}",
+                answer=f"Could not find sufficient scientific literature evidence to compare '{clean_a}' and '{clean_b}'.",
+                sources=[],
+                grounded=False,
+                raw_response="No evidence retrieved for comparison.",
+            )
+            val = GroundingValidationResult(
+                is_grounded=False,
+                valid_citations=[],
+                unsupported_citations=[],
+                warning_message=f"No supporting scientific evidence was retrieved for '{clean_a}' or '{clean_b}'.",
+            )
+            formatted_md = format_grounded_answer(ans, val)
+
+            active_session.add_user_message(f"Compare {clean_a} vs {clean_b}")
+            active_session.add_assistant_message(ans.answer, sources=[])
+
+            return ScientificExpertResponse(
+                query=f"Compare {clean_a} vs {clean_b}",
+                condensed_query=f"Compare {clean_a} and {clean_b}",
+                answer=ans.answer,
+                intent=INTENT_COMPARISON,
+                sources=[],
+                citations=[],
+                grounded=False,
+                warning_message=val.warning_message,
+                formatted_markdown=formatted_md,
+            )
 
         context_str = format_retrieval_context(combined_sources)
         prompt = COMPARISON_PROMPT_TEMPLATE.format(
@@ -792,7 +821,7 @@ class ScientificExpertService:
         return self.explain_concept(cleaned, session=session)
 
     def _handle_general_fallback(self, query: str, intent: str, session: ScientificConversationSession) -> ScientificExpertResponse:
-        resp = self.conversational_service.chat(query=query, session=session)
+        resp = self.conversational_service.chat(query=query, session=session, condensed_query=query)
         return ScientificExpertResponse(
             query=resp.query,
             condensed_query=resp.condensed_query,
