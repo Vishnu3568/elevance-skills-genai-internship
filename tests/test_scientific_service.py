@@ -94,14 +94,27 @@ class FakeExpertLLM:
 
         # Condensation prompt
         if "STANDALONE QUESTION:" in prompt_str:
-            if "its limitations" in prompt_str.lower():
+            query_part = prompt_str.split("FOLLOW-UP QUESTION:")[-1].split("STANDALONE QUESTION:")[0].lower() if "FOLLOW-UP QUESTION:" in prompt_str else prompt_str.lower()
+            if "its limitations" in query_part:
                 return AIMessage(content="What are the limitations of Retrieval-Augmented Generation (2005.11401)?")
-            if "compare" in prompt_str.lower() and ("it" in prompt_str.lower() or "rnn" in prompt_str.lower()):
+            if "compare" in query_part and ("it" in query_part or "rnn" in query_part):
                 return AIMessage(content="Compare Transformers (1706.03762) with RNNs.")
-            if "masking" in prompt_str.lower() or "bert" in prompt_str.lower():
+            if "masking" in query_part or "bert" in query_part:
                 return AIMessage(content="Explain the masked language model mechanism in BERT.")
-            if "summarize" in prompt_str.lower() and ("this" in prompt_str.lower() or "paper" in prompt_str.lower()):
+            if "summarize" in query_part and ("this" in query_part or "paper" in query_part):
                 return AIMessage(content="Summarize the paper Attention Is All You Need (1706.03762).")
+            if "second" in query_part:
+                return AIMessage(content="Explain the second contribution of Attention Is All You Need (1706.03762).")
+            if "who" in query_part and "author" in query_part:
+                return AIMessage(content="Who are the authors of Attention Is All You Need (1706.03762)?")
+            if "dataset" in query_part:
+                return AIMessage(content="What dataset did Attention Is All You Need (1706.03762) use?")
+            if "result" in query_part or "finding" in query_part:
+                return AIMessage(content="What were the results of Attention Is All You Need (1706.03762)?")
+            if "key contributions" in query_part or "contribution" in query_part:
+                return AIMessage(content="What are the key contributions of Attention Is All You Need (1706.03762)?")
+            if "why" in query_part:
+                return AIMessage(content="Why is the second contribution of Attention Is All You Need (1706.03762) important?")
             return AIMessage(content="Explain self-attention in Transformer models (1706.03762).")
 
         # Summary prompt
@@ -246,6 +259,14 @@ class FakeExpertLLM:
             )
 
         # Default QA / General Prompt
+        query_in_qa = prompt_str.split("QUESTION:")[-1].split("GROUNDED SCIENTIFIC EXPLANATION:")[0].lower() if "QUESTION:" in prompt_str else prompt_str.lower()
+        if "2005.11401" in query_in_qa or "retrieval-augmented" in query_in_qa or "rag" in query_in_qa or "retrieval" in query_in_qa:
+            return AIMessage(content="RAG (arXiv: 2005.11401) integrates parametric memory with dense retrieval.")
+        if "1706.03762" in query_in_qa or "attention" in query_in_qa or "transformer" in query_in_qa:
+            return AIMessage(content="The Transformer (arXiv: 1706.03762) uses multi-head attention.")
+        if "2106.09685" in query_in_qa or "lora" in query_in_qa:
+            return AIMessage(content="LoRA (arXiv: 2106.09685) reduces trainable parameters via low-rank decomposition.")
+
         if "2005.11401" in prompt_str or "Retrieval-Augmented" in prompt_str or "rag" in prompt_str.lower():
             return AIMessage(content="RAG (arXiv: 2005.11401) integrates parametric memory with dense retrieval.")
         if "1706.03762" in prompt_str or "Attention" in prompt_str:
@@ -694,6 +715,108 @@ class TestScientificService(unittest.TestCase):
         self.assertEqual(resp2.citations[0].arxiv_id, "2005.11401")
         self.assertIn("2005.11401", resp2.answer)
 
+    def test_followup_ordinal_resolution(self):
+        """Verify that asking for an ordinal contribution resolves to the specific paper contribution."""
+        self.service.clear_session()
+        self.service.ask("What are the key contributions of Attention Is All You Need?")
+        resp = self.service.ask("Explain the second one.")
+        self.assertEqual(resp.query, "Explain the second one.")
+        self.assertIn("second contribution of Attention Is All You Need", resp.condensed_query)
+        self.assertEqual(resp.intent, INTENT_CONCEPT_EXPLANATION)
+        self.assertTrue(resp.grounded)
+
+    def test_followup_author_inquiry(self):
+        """Verify that follow-up author inquiries resolve the paper reference correctly."""
+        self.service.clear_session()
+        self.service.ask("Summarize Attention Is All You Need")
+        resp = self.service.ask("Who are the authors?")
+        self.assertEqual(resp.query, "Who are the authors?")
+        self.assertIn("authors of Attention Is All You Need", resp.condensed_query)
+        self.assertTrue(resp.grounded)
+
+    def test_followup_dataset_inquiry(self):
+        """Verify that follow-up dataset inquiries resolve the paper reference correctly."""
+        self.service.clear_session()
+        self.service.ask("Summarize Attention Is All You Need")
+        resp = self.service.ask("What dataset did they use?")
+        self.assertEqual(resp.query, "What dataset did they use?")
+        self.assertIn("Attention Is All You Need", resp.condensed_query)
+        self.assertTrue(resp.grounded)
+
+    def test_followup_results_inquiry(self):
+        """Verify that follow-up results/findings inquiries resolve the paper reference correctly."""
+        self.service.clear_session()
+        self.service.ask("Summarize Attention Is All You Need")
+        resp = self.service.ask("What were the results?")
+        self.assertEqual(resp.query, "What were the results?")
+        self.assertIn("results of Attention Is All You Need", resp.condensed_query)
+        self.assertTrue(resp.grounded)
+
+    def test_multi_hop_followup_chain(self):
+        """Verify multi-hop conversational follow-up chains retain context across 4 turns."""
+        self.service.clear_session()
+        # Turn 1
+        r1 = self.service.ask("Tell me about Attention Is All You Need")
+        self.assertIn("1706.03762", r1.answer)
+
+        # Turn 2
+        r2 = self.service.ask("What are its key contributions?")
+        self.assertIn("Attention Is All You Need", r2.condensed_query)
+
+        # Turn 3
+        r3 = self.service.ask("Explain the second one.")
+        self.assertIn("second contribution of Attention Is All You Need", r3.condensed_query)
+
+        # Turn 4
+        r4 = self.service.ask("Why is that important?")
+        self.assertIn("Attention Is All You Need", r4.condensed_query)
+        self.assertEqual(len(self.service.get_session_messages()), 8)
+
+    def test_context_switching_between_papers(self):
+        """Verify that switching paper focus in a conversation switches the follow-up target."""
+        self.service.clear_session()
+        # Turn 1: Paper A
+        self.service.ask("Summarize Attention Is All You Need")
+
+        # Turn 2: Paper B
+        self.service.ask("Summarize Retrieval-Augmented Generation")
+
+        # Turn 3: Follow-up must refer strictly to Paper B
+        r3 = self.service.ask("What are its limitations?")
+        self.assertIn("Retrieval-Augmented Generation", r3.condensed_query)
+        self.assertIn("2005.11401", r3.condensed_query)
+        self.assertNotIn("1706.03762", r3.condensed_query)
+
+    def test_zero_retrieval_comparison_safety(self):
+        """Verify that comparing nonexistent topics produces a safe ungrounded response without recursion."""
+        empty_retriever = ScientificRetriever(vector_store=self.retriever.vector_store)
+        empty_retriever.retrieve = lambda query, k=2: []  # type: ignore
+
+        safe_service = ScientificExpertService(
+            retriever=empty_retriever,
+            generator=self.generator,
+        )
+        resp = safe_service.compare("NonexistentTopicXYZ123", "NonexistentTopicABC456")
+        self.assertIsInstance(resp, ScientificExpertResponse)
+        self.assertFalse(resp.grounded)
+        self.assertEqual(len(resp.sources), 0)
+        self.assertIsNotNone(resp.warning_message)
+        self.assertIn("No supporting scientific evidence", str(resp.warning_message))
+
+    def test_double_condensation_protection(self):
+        """Verify that ScientificExpertService.ask() passes condensed_query to chat to prevent duplicate condensation."""
+        self.service.clear_session()
+        self.service.ask("Explain Transformers.")
+
+        # Spy on fake_llm invocation count during follow-up
+        initial_invocations = len(self.fake_llm.invocations)
+        resp = self.service.ask("What are its limitations?")
+
+        # Count how many STANDALONE QUESTION prompts were invoked
+        condensation_prompts = [p for p in self.fake_llm.invocations[initial_invocations:] if "STANDALONE QUESTION:" in p]
+        self.assertEqual(len(condensation_prompts), 1, "Condensation prompt should execute exactly once per turn.")
+        self.assertIn("Retrieval-Augmented Generation", resp.condensed_query)
+
     def test_service_isolation_from_production_stores(self):
         """Verify that ScientificExpertService never alters customer or medical stores."""
         proj_root = Path(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -716,4 +839,5 @@ class TestScientificService(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
 
