@@ -236,6 +236,59 @@ class TestScientificConversation(unittest.TestCase):
         with self.assertRaises(ValueError):
             condense_followup_query("  ", [])
 
+    def test_heuristic_ordinal_followup_resolution(self):
+        """Verify deterministic heuristic resolution on ordinal references like 'the second one'."""
+        history = [
+            ChatMessage(role="user", content="Summarize Attention Is All You Need"),
+            ChatMessage(
+                role="assistant",
+                content="Key contributions: 1. Multi-head self-attention 2. Positional encodings",
+                sources=[self.paper1],
+            ),
+        ]
+        condensed = condense_followup_query("Explain the second one.", chat_history=history, llm=None)
+        self.assertIn("second contribution of Attention Is All You Need", condensed)
+        self.assertIn("1706.03762", condensed)
+
+    def test_heuristic_author_and_dataset_followup_resolution(self):
+        """Verify deterministic heuristic resolution on author and dataset questions."""
+        history = [
+            ChatMessage(role="user", content="Tell me about Retrieval-Augmented Generation"),
+            ChatMessage(role="assistant", content="RAG was proposed for open-domain QA.", sources=[self.paper2]),
+        ]
+        cond_authors = condense_followup_query("Who are the authors?", chat_history=history, llm=None)
+        self.assertIn("Who are the authors of Retrieval-Augmented Generation", cond_authors)
+        self.assertIn("2005.11401", cond_authors)
+
+        cond_dataset = condense_followup_query("What dataset did they use?", chat_history=history, llm=None)
+        self.assertIn("Retrieval-Augmented Generation", cond_dataset)
+        self.assertIn("2005.11401", cond_dataset)
+
+    def test_heuristic_results_and_findings_followup_resolution(self):
+        """Verify deterministic heuristic resolution on results and findings questions."""
+        history = [
+            ChatMessage(role="user", content="Summarize paper 1706.03762"),
+            ChatMessage(role="assistant", content="Transformer translation model.", sources=[self.paper1]),
+        ]
+        cond_results = condense_followup_query("What were the results?", chat_history=history, llm=None)
+        self.assertIn("What were the results of Attention Is All You Need", cond_results)
+        self.assertIn("1706.03762", cond_results)
+
+    def test_chat_with_pre_condensed_query_bypasses_second_condensation(self):
+        """Verify that passing condensed_query directly to chat() uses it without re-condensing."""
+        session = ScientificConversationSession()
+        session.add_user_message("Initial query")
+        session.add_assistant_message("Initial answer", sources=[self.paper1])
+
+        # Pre-condensed query provided
+        resp = self.service.chat(
+            query="What are its limitations?",
+            session=session,
+            condensed_query="Explicitly pre-resolved standalone query (1706.03762)",
+        )
+        self.assertEqual(resp.query, "What are its limitations?")
+        self.assertEqual(resp.condensed_query, "Explicitly pre-resolved standalone query (1706.03762)")
+
     def test_conversation_isolation_from_production_stores(self):
         """Verify conversational service operations never modify customer or medical stores."""
         proj_root = Path(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -256,3 +309,5 @@ class TestScientificConversation(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
