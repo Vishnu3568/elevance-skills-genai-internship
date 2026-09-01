@@ -1,4 +1,4 @@
-"""Multimodal Orchestrator and Pipeline Architecture (Phase 5 — Day 24).
+"""Multimodal Orchestrator and Pipeline Architecture (Phase 5 — Day 24 & Day 25).
 
 Establishes the high-level orchestration interface, routing logic, and integration
 hooks for the Multimodal AI Assistant. Coordinates text-only, image-only, and
@@ -42,6 +42,7 @@ class MultimodalOrchestrator:
 
     def __init__(
         self,
+        vision_service: Optional[Any] = None,
         image_understanding_hook: Optional[ImageUnderstandingHook] = None,
         reasoning_engine_hook: Optional[ReasoningEngineHook] = None,
         ambiguity_detector_hook: Optional[AmbiguityDetectorHook] = None,
@@ -50,12 +51,18 @@ class MultimodalOrchestrator:
         """Initialize the orchestrator with optional downstream component hooks.
 
         Args:
+            vision_service: Optional VisionService instance (Day 25 vision layer).
             image_understanding_hook: Hook for Day 25 visual understanding & feature extraction.
             reasoning_engine_hook: Hook for Day 26 joint cross-modal reasoning.
             ambiguity_detector_hook: Hook for Day 28 visual ambiguity detection.
             grounding_validator_hook: Hook for Day 28 evidence validation and grounding.
         """
+        self.vision_service = vision_service
         self.image_understanding_hook = image_understanding_hook
+        if self.vision_service is not None and self.image_understanding_hook is None:
+            if hasattr(self.vision_service, "as_hook"):
+                self.image_understanding_hook = self.vision_service.as_hook()
+
         self.reasoning_engine_hook = reasoning_engine_hook
         self.ambiguity_detector_hook = ambiguity_detector_hook
         self.grounding_validator_hook = grounding_validator_hook
@@ -184,9 +191,10 @@ class MultimodalOrchestrator:
     def _handle_image_only(self, request: MultimodalRequest) -> MultimodalResponse:
         """Handle image-only upload routing (automatic visual breakdown)."""
         image_count = len(request.images)
-        metadata = {}
-        if image_count > 0:
-            first_img = request.images[0]
+        metadata: Dict[str, Any] = {}
+        first_img: Optional[ImageArtifact] = request.images[0] if image_count > 0 else None
+
+        if first_img:
             metadata = {
                 "format": first_img.format,
                 "width": first_img.width,
@@ -194,18 +202,38 @@ class MultimodalOrchestrator:
                 "mime_type": first_img.mime_type,
             }
 
-        answer = (
-            f"[Image-Only Pipeline] Received {image_count} image(s). "
-            f"Primary image: {metadata.get('format', 'N/A')} ({metadata.get('width', 0)}x{metadata.get('height', 0)}px)."
-        )
+        evidence: List[VisualEvidenceItem] = []
 
-        evidence = [
-            VisualEvidenceItem(
-                description=f"Image artifact format {metadata.get('format')}, size {metadata.get('width')}x{metadata.get('height')}",
-                region_label="Global Image",
-                confidence=1.0,
+        # If vision service is connected, use it for structured visual understanding
+        if self.vision_service is not None and first_img is not None:
+            visual_output = self.vision_service.analyze(first_img)
+            evidence = visual_output.to_visual_evidence_items()
+            metadata.update(visual_output.visual_attributes)
+            answer = f"[Visual Understanding] {visual_output.scene_description}"
+        elif self.image_understanding_hook is not None and first_img is not None:
+            hook_res = self.image_understanding_hook(first_img)
+            desc = hook_res.get("scene_description", f"Observed {metadata.get('format')} image")
+            evidence = [
+                VisualEvidenceItem(
+                    description=desc,
+                    region_label="Global Scene",
+                    confidence=float(hook_res.get("confidence", 1.0)),
+                )
+            ]
+            answer = f"[Visual Understanding] {desc}"
+        else:
+            answer = (
+                f"[Image-Only Pipeline] Received {image_count} image(s). "
+                f"Primary image: {metadata.get('format', 'N/A')} ({metadata.get('width', 0)}x{metadata.get('height', 0)}px)."
             )
-        ]
+            if first_img:
+                evidence = [
+                    VisualEvidenceItem(
+                        description=f"Image artifact format {metadata.get('format')}, size {metadata.get('width')}x{metadata.get('height')}",
+                        region_label="Global Image",
+                        confidence=1.0,
+                    )
+                ]
 
         return MultimodalResponse(
             query="",
@@ -219,12 +247,13 @@ class MultimodalOrchestrator:
         )
 
     def _handle_text_and_image(self, request: MultimodalRequest) -> MultimodalResponse:
-        """Handle joint cross-modal request routing."""
+        """Handle joint request visual feature extraction (cross-modal reasoning belongs to Day 26)."""
         query_str = request.query or ""
         image_count = len(request.images)
-        metadata = {}
-        if image_count > 0:
-            first_img = request.images[0]
+        metadata: Dict[str, Any] = {}
+        first_img: Optional[ImageArtifact] = request.images[0] if image_count > 0 else None
+
+        if first_img:
             metadata = {
                 "format": first_img.format,
                 "width": first_img.width,
@@ -232,17 +261,40 @@ class MultimodalOrchestrator:
                 "mime_type": first_img.mime_type,
             }
 
-        answer = (
-            f"[Cross-Modal Pipeline] Analyzed query '{query_str}' against {image_count} visual artifact(s)."
-        )
+        evidence: List[VisualEvidenceItem] = []
 
-        evidence = [
-            VisualEvidenceItem(
-                description=f"Visual context for query '{query_str}' from {metadata.get('format', 'image')}",
-                region_label="Primary Visual Context",
-                confidence=1.0,
+        # If vision service is connected, extract structured visual information only
+        if self.vision_service is not None and first_img is not None:
+            visual_output = self.vision_service.analyze(first_img)
+            evidence = visual_output.to_visual_evidence_items()
+            metadata.update(visual_output.visual_attributes)
+            answer = (
+                f"[Visual Understanding] Extracted visual features for query '{query_str}': "
+                f"{visual_output.scene_description}"
             )
-        ]
+        elif self.image_understanding_hook is not None and first_img is not None:
+            hook_res = self.image_understanding_hook(first_img)
+            desc = hook_res.get("scene_description", f"Observed {metadata.get('format')} image")
+            evidence = [
+                VisualEvidenceItem(
+                    description=desc,
+                    region_label="Visual Context",
+                    confidence=float(hook_res.get("confidence", 1.0)),
+                )
+            ]
+            answer = f"[Visual Understanding] Extracted visual features for query '{query_str}': {desc}"
+        else:
+            answer = (
+                f"[Cross-Modal Pipeline] Analyzed query '{query_str}' against {image_count} visual artifact(s)."
+            )
+            if first_img:
+                evidence = [
+                    VisualEvidenceItem(
+                        description=f"Visual context for query '{query_str}' from {metadata.get('format', 'image')}",
+                        region_label="Primary Visual Context",
+                        confidence=1.0,
+                    )
+                ]
 
         return MultimodalResponse(
             query=query_str,
