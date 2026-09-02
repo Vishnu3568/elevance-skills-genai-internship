@@ -43,27 +43,40 @@ class MultimodalOrchestrator:
     def __init__(
         self,
         vision_service: Optional[Any] = None,
+        reasoning_engine: Optional[Any] = None,
+        response_generator: Optional[Any] = None,
         image_understanding_hook: Optional[ImageUnderstandingHook] = None,
         reasoning_engine_hook: Optional[ReasoningEngineHook] = None,
         ambiguity_detector_hook: Optional[AmbiguityDetectorHook] = None,
         grounding_validator_hook: Optional[GroundingValidatorHook] = None,
+        enable_reasoning_pipeline: bool = False,
     ) -> None:
         """Initialize the orchestrator with optional downstream component hooks.
 
         Args:
             vision_service: Optional VisionService instance (Day 25 vision layer).
+            reasoning_engine: Optional MultimodalReasoningEngine instance (Day 26 reasoning layer).
+            response_generator: Optional MultimodalResponseGenerator instance (Day 26 response layer).
             image_understanding_hook: Hook for Day 25 visual understanding & feature extraction.
             reasoning_engine_hook: Hook for Day 26 joint cross-modal reasoning.
             ambiguity_detector_hook: Hook for Day 28 visual ambiguity detection.
             grounding_validator_hook: Hook for Day 28 evidence validation and grounding.
+            enable_reasoning_pipeline: If True, wires up the complete Day 26 reasoning pipeline.
         """
         self.vision_service = vision_service
+        self.reasoning_engine = reasoning_engine
+        self.response_generator = response_generator
+        self.enable_reasoning_pipeline = enable_reasoning_pipeline or (reasoning_engine is not None)
+
         self.image_understanding_hook = image_understanding_hook
         if self.vision_service is not None and self.image_understanding_hook is None:
             if hasattr(self.vision_service, "as_hook"):
                 self.image_understanding_hook = self.vision_service.as_hook()
 
         self.reasoning_engine_hook = reasoning_engine_hook
+        if self.reasoning_engine_hook is None and self.enable_reasoning_pipeline:
+            self._setup_default_reasoning_pipeline()
+
         self.ambiguity_detector_hook = ambiguity_detector_hook
         self.grounding_validator_hook = grounding_validator_hook
 
@@ -145,6 +158,62 @@ class MultimodalOrchestrator:
             session_id=session_id,
         )
         return self.process(req)
+
+    def process_image_file(
+        self,
+        file_path: Any,
+        query: Optional[str] = None,
+        session_id: str = "default_multimodal_session",
+    ) -> MultimodalResponse:
+        """Ingest an image file from disk and process it end-to-end through the pipeline."""
+        from .ingestion import ingest_image
+        artifact = ingest_image(file_path)
+        return self.process_query(query=query, images=[artifact], session_id=session_id)
+
+    def process_image_bytes(
+        self,
+        data: bytes,
+        query: Optional[str] = None,
+        file_name: Optional[str] = None,
+        session_id: str = "default_multimodal_session",
+    ) -> MultimodalResponse:
+        """Ingest raw image bytes and process them end-to-end through the pipeline."""
+        from .ingestion import ingest_image
+        artifact = ingest_image(data, file_name=file_name)
+        return self.process_query(query=query, images=[artifact], session_id=session_id)
+
+    def _setup_default_reasoning_pipeline(self) -> None:
+        """Configure default Day 25 vision, Day 26 context, reasoning, and response generation."""
+        from .context import build_multimodal_context
+        from .reasoning import MultimodalReasoningEngine
+        from .response_generator import MultimodalResponseGenerator
+        from .vision import VisionService
+
+        if self.vision_service is None:
+            self.vision_service = VisionService()
+        if self.reasoning_engine is None:
+            self.reasoning_engine = MultimodalReasoningEngine()
+        if self.response_generator is None:
+            self.response_generator = MultimodalResponseGenerator()
+
+        def _pipeline_hook(request: MultimodalRequest) -> MultimodalResponse:
+            first_img = request.images[0] if request.images else None
+            visual_output = None
+            if first_img is not None and self.vision_service is not None:
+                visual_output = self.vision_service.analyze(first_img)
+
+            context = build_multimodal_context(
+                request=request,
+                artifact=first_img,
+                visual_output=visual_output,
+            )
+
+            result = self.reasoning_engine.reason(context)
+            if self.response_generator is not None:
+                return self.response_generator.generate_response(result, context=context)
+            return result.to_multimodal_response()
+
+        self.reasoning_engine_hook = _pipeline_hook
 
     # -------------------------------------------------------------------------
     # Internal Routing and Default Handlers
@@ -306,3 +375,44 @@ class MultimodalOrchestrator:
             session_id=request.session_id,
             formatted_markdown=f"### Multimodal Analysis\n{answer}",
         )
+
+
+# -----------------------------------------------------------------------------
+# Pipeline Factory Function
+# -----------------------------------------------------------------------------
+
+def create_multimodal_pipeline(
+    vision_service: Optional[Any] = None,
+    reasoning_engine: Optional[Any] = None,
+    response_generator: Optional[Any] = None,
+    ambiguity_detector_hook: Optional[AmbiguityDetectorHook] = None,
+    grounding_validator_hook: Optional[GroundingValidatorHook] = None,
+) -> MultimodalOrchestrator:
+    """Create a fully integrated Day 26 multimodal reasoning pipeline orchestrator.
+
+    Integrates:
+      User Input / Image -> Ingestion -> Preprocessing -> Vision Understanding ->
+      Unified Multimodal Context -> Multimodal Reasoning -> Multimodal Response
+
+    Args:
+        vision_service: Optional VisionService (defaults to VisionService()).
+        reasoning_engine: Optional ReasoningEngine (defaults to MultimodalReasoningEngine()).
+        response_generator: Optional ResponseGenerator (defaults to MultimodalResponseGenerator()).
+        ambiguity_detector_hook: Optional hook for Day 28 ambiguity detection.
+        grounding_validator_hook: Optional hook for Day 28 grounding validation.
+
+    Returns:
+        MultimodalOrchestrator: Pre-configured, fully integrated multimodal reasoning pipeline.
+    """
+    from .reasoning import MultimodalReasoningEngine
+    from .response_generator import MultimodalResponseGenerator
+    from .vision import VisionService
+
+    return MultimodalOrchestrator(
+        vision_service=vision_service or VisionService(),
+        reasoning_engine=reasoning_engine or MultimodalReasoningEngine(),
+        response_generator=response_generator or MultimodalResponseGenerator(),
+        ambiguity_detector_hook=ambiguity_detector_hook,
+        grounding_validator_hook=grounding_validator_hook,
+        enable_reasoning_pipeline=True,
+    )
