@@ -14,6 +14,24 @@ from .context import (
     build_multimodal_context,
     validate_multimodal_context,
 )
+from .context_retention import (
+    MultimodalContextRetriever,
+    RetainedConversationContext,
+    RetainedTurnView,
+    retrieve_conversation_context,
+)
+from .conversation import (
+    ConversationTurn,
+    MultimodalContextSummary,
+    MultimodalConversationSession,
+    MultimodalSessionManager,
+    validate_conversation_turn,
+)
+from .followup import (
+    FollowUpResolution,
+    MultimodalFollowUpResolver,
+    resolve_multimodal_followup,
+)
 from .ingestion import (
     FORMAT_TO_MIME,
     ImageIngestionService,
@@ -72,10 +90,12 @@ from .vision import (
 __all__ = [
     "AmbiguityDetails",
     "AmbiguityDetectorHook",
+    "ConversationTurn",
     "DeterministicMockVisionProvider",
     "DeterministicReasoningEngine",
     "EvidenceProvenance",
     "FORMAT_TO_MIME",
+    "FollowUpResolution",
     "GeminiVisionProvider",
     "GroundingValidatorHook",
     "ImageArtifact",
@@ -87,6 +107,10 @@ __all__ = [
     "MIN_IMAGE_DIMENSION",
     "ModalityType",
     "MultimodalContext",
+    "MultimodalContextRetriever",
+    "MultimodalContextSummary",
+    "MultimodalConversationSession",
+    "MultimodalFollowUpResolver",
     "MultimodalOrchestrator",
     "MultimodalReasoningEngine",
     "MultimodalReasoningResult",
@@ -94,10 +118,13 @@ __all__ = [
     "MultimodalRequest",
     "MultimodalResponse",
     "MultimodalResponseGenerator",
+    "MultimodalSessionManager",
     "PreprocessedImage",
     "ReasoningEngine",
     "ReasoningEngineHook",
     "ReasoningResult",
+    "RetainedConversationContext",
+    "RetainedTurnView",
     "SUPPORTED_MIME_TYPES",
     "StructuredVisualOutput",
     "TextualContext",
@@ -111,7 +138,10 @@ __all__ = [
     "generate_multimodal_response",
     "ingest_image",
     "preprocess_image",
+    "resolve_multimodal_followup",
+    "retrieve_conversation_context",
     "validate_ambiguity_details",
+    "validate_conversation_turn",
     "validate_image_artifact",
     "validate_multimodal_context",
     "validate_multimodal_request",
