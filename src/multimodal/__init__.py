@@ -5,6 +5,20 @@ image preprocessing, vision model abstractions, unified multimodal context repre
 cross-modal reasoning engines, evidence-aware response generation, and the central orchestration pipeline.
 """
 
+from .ambiguity import (
+    AmbiguityAssessmentResult,
+    AmbiguityLevel,
+    AmbiguityType,
+    MultimodalAmbiguityDetector,
+    assess_multimodal_ambiguity,
+)
+from .confidence import (
+    ConfidenceAssessmentResult,
+    ConfidenceStatus,
+    ItemConfidence,
+    MultimodalConfidenceAssessor,
+    assess_multimodal_confidence,
+)
 from .context import (
     EvidenceProvenance,
     MultimodalContext,
@@ -26,6 +40,27 @@ from .conversation import (
     MultimodalConversationSession,
     MultimodalSessionManager,
     validate_conversation_turn,
+)
+from .evidence_validator import (
+    EvidenceItemValidation,
+    EvidenceStatus,
+    EvidenceValidationResult,
+    MultimodalEvidenceValidator,
+    validate_multimodal_evidence,
+)
+from .fallback import (
+    FallbackAction,
+    FallbackDecision,
+    MultimodalFallbackHandler,
+    evaluate_safe_fallback,
+)
+from .missing_information import (
+    MissingInformationAssessmentResult,
+    MissingInformationItem,
+    MissingInformationSeverity,
+    MissingInformationType,
+    MultimodalMissingInformationDetector,
+    assess_multimodal_missing_information,
 )
 from .followup import (
     FollowUpResolution,
@@ -88,13 +123,23 @@ from .vision import (
 )
 
 __all__ = [
+    "AmbiguityAssessmentResult",
     "AmbiguityDetails",
     "AmbiguityDetectorHook",
+    "AmbiguityLevel",
+    "AmbiguityType",
+    "ConfidenceAssessmentResult",
+    "ConfidenceStatus",
     "ConversationTurn",
     "DeterministicMockVisionProvider",
     "DeterministicReasoningEngine",
+    "EvidenceItemValidation",
     "EvidenceProvenance",
+    "EvidenceStatus",
+    "EvidenceValidationResult",
     "FORMAT_TO_MIME",
+    "FallbackAction",
+    "FallbackDecision",
     "FollowUpResolution",
     "GeminiVisionProvider",
     "GroundingValidatorHook",
@@ -102,15 +147,25 @@ __all__ = [
     "ImageIngestionService",
     "ImagePreprocessor",
     "ImageUnderstandingHook",
+    "ItemConfidence",
     "MAX_IMAGE_DIMENSION",
     "MAX_IMAGE_SIZE_BYTES",
     "MIN_IMAGE_DIMENSION",
+    "MissingInformationAssessmentResult",
+    "MissingInformationItem",
+    "MissingInformationSeverity",
+    "MissingInformationType",
     "ModalityType",
+    "MultimodalAmbiguityDetector",
+    "MultimodalConfidenceAssessor",
     "MultimodalContext",
     "MultimodalContextRetriever",
     "MultimodalContextSummary",
     "MultimodalConversationSession",
+    "MultimodalEvidenceValidator",
+    "MultimodalFallbackHandler",
     "MultimodalFollowUpResolver",
+    "MultimodalMissingInformationDetector",
     "MultimodalOrchestrator",
     "MultimodalReasoningEngine",
     "MultimodalReasoningResult",
@@ -133,8 +188,12 @@ __all__ = [
     "VisionService",
     "VisualContext",
     "VisualEvidenceItem",
+    "assess_multimodal_ambiguity",
+    "assess_multimodal_confidence",
+    "assess_multimodal_missing_information",
     "build_multimodal_context",
     "create_multimodal_pipeline",
+    "evaluate_safe_fallback",
     "generate_multimodal_response",
     "ingest_image",
     "preprocess_image",
@@ -144,6 +203,7 @@ __all__ = [
     "validate_conversation_turn",
     "validate_image_artifact",
     "validate_multimodal_context",
+    "validate_multimodal_evidence",
     "validate_multimodal_request",
     "validate_multimodal_response",
     "validate_visual_evidence_item",
