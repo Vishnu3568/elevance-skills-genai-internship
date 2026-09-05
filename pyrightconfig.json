@@ -6,5 +6,7 @@
   "extraPaths": [
     ".",
     "src"
-  ]
+  ],
+  "venvPath": ".",
+  "venv": "chatbot"
 }
