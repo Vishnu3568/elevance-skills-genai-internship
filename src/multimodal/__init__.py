@@ -110,6 +110,10 @@ from .reasoning import (
     ReasoningEngine,
     ReasoningResult,
 )
+from .service import (
+    MultimodalAssistantService,
+    MultimodalUIResult,
+)
 from .response_generator import (
     MultimodalResponseGenerator,
     generate_multimodal_response,
@@ -157,6 +161,7 @@ __all__ = [
     "MissingInformationType",
     "ModalityType",
     "MultimodalAmbiguityDetector",
+    "MultimodalAssistantService",
     "MultimodalConfidenceAssessor",
     "MultimodalContext",
     "MultimodalContextRetriever",
@@ -174,6 +179,7 @@ __all__ = [
     "MultimodalResponse",
     "MultimodalResponseGenerator",
     "MultimodalSessionManager",
+    "MultimodalUIResult",
     "PreprocessedImage",
     "ReasoningEngine",
     "ReasoningEngineHook",
