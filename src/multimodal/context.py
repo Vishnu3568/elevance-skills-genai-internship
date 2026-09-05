@@ -141,6 +141,11 @@ class VisualContext:
     metadata: Dict[str, Any] = field(default_factory=dict)
 
     @property
+    def has_image(self) -> bool:
+        """Check if an image artifact is present."""
+        return self.artifact is not None
+
+    @property
     def has_visuals(self) -> bool:
         """Check if visual data or findings are present."""
         return bool(
@@ -205,6 +210,16 @@ class MultimodalContext:
             if ev.modality in (ModalityType.IMAGE_ONLY, ModalityType.TEXT_AND_IMAGE):
                 items.append(ev.to_visual_evidence_item())
         return items
+
+    @property
+    def visual(self) -> VisualContext:
+        """Convenience alias for visual_context."""
+        return self.visual_context
+
+    @property
+    def textual(self) -> TextualContext:
+        """Convenience alias for text_context."""
+        return self.text_context
 
     def get_summary_description(self) -> str:
         """Generate a concise textual overview of the fused multimodal state."""
