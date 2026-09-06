@@ -6,27 +6,11 @@ os.environ["NLTK_DISABLE_IMPORT_SECURITY"] = "1"
 sys.path = [p for p in sys.path if p and os.path.abspath(p) != os.path.abspath('.')]
 
 from dotenv import load_dotenv
-try:
-    from langchain_community.vectorstores import FAISS
-    from langchain_community.document_loaders import CSVLoader
-    from langchain_community.embeddings import HuggingFaceInstructEmbeddings, HuggingFaceEmbeddings
-except ImportError:
-    from langchain.vectorstores import FAISS
-    from langchain.document_loaders import CSVLoader
-    from langchain.embeddings import HuggingFaceInstructEmbeddings, HuggingFaceEmbeddings
-
-try:
-    from langchain_core.prompts import PromptTemplate
-except ImportError:
-    from langchain.prompts import PromptTemplate
-
-try:
-    from langchain.chains import RetrievalQA
-except ImportError:
-    try:
-        from langchain_classic.chains import RetrievalQA
-    except ImportError:
-        from langchain_community.chains import RetrievalQA
+from langchain_community.vectorstores import FAISS
+from langchain_community.document_loaders import CSVLoader
+from langchain_community.embeddings import HuggingFaceInstructEmbeddings, HuggingFaceEmbeddings
+from langchain_core.prompts import PromptTemplate
+from langchain_classic.chains import RetrievalQA
 
 load_dotenv()
 
@@ -42,10 +26,6 @@ def get_instructor_embeddings():
     try:
         return HuggingFaceInstructEmbeddings(model_name="hkunlp/instructor-large")
     except Exception as e:
-        try:
-            from langchain.embeddings import HuggingFaceEmbeddings
-        except ImportError:
-            from langchain_community.embeddings import HuggingFaceEmbeddings
         return HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
 
 # Lazy initialization of LLM
