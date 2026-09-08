@@ -147,3 +147,76 @@ class MultilingualTextRequest:
             "session_id": self.session_id,
             "metadata": dict(self.metadata),
         }
+
+
+# -----------------------------------------------------------------------------
+# Multilingual Intent Enumeration and Result Contract
+# -----------------------------------------------------------------------------
+
+class MultilingualIntent(str, Enum):
+    """Enumeration of canonical customer-service domain intents in Phase 6."""
+
+    GREETING = "greeting"
+    REFUND_POLICY = "refund_policy"
+    PREREQUISITES = "prerequisites"
+    COURSE_DETAILS = "course_details"
+    CAREER_ASSISTANCE = "career_assistance"
+    SUPPORT_CONTACT = "support_contact"
+    PAYMENT_PRICING = "payment_pricing"
+    TECHNICAL_SUPPORT = "technical_support"
+    GENERAL_INQUIRY = "general_inquiry"
+    UNKNOWN = "unknown"
+
+    @classmethod
+    def get_valid_intents(cls) -> Set[str]:
+        """Return all valid intent string values excluding unknown."""
+        return {
+            cls.GREETING.value,
+            cls.REFUND_POLICY.value,
+            cls.PREREQUISITES.value,
+            cls.COURSE_DETAILS.value,
+            cls.CAREER_ASSISTANCE.value,
+            cls.SUPPORT_CONTACT.value,
+            cls.PAYMENT_PRICING.value,
+            cls.TECHNICAL_SUPPORT.value,
+            cls.GENERAL_INQUIRY.value,
+        }
+
+
+@dataclass
+class MultilingualIntentResult:
+    """Canonical contract for the outcome of multilingual intent detection."""
+
+    text: str
+    intent: str
+    confidence: float
+    language: str
+    is_recognized: bool = True
+    matched_keywords: List[str] = field(default_factory=list)
+    metadata: Dict[str, Any] = field(default_factory=dict)
+
+    def __post_init__(self) -> None:
+        """Validate invariants of the intent detection result."""
+        if not isinstance(self.text, str):
+            raise TypeError(f"text must be str, got {type(self.text).__name__}")
+        if not isinstance(self.intent, str):
+            raise TypeError(f"intent must be str, got {type(self.intent).__name__}")
+        if not (0.0 <= self.confidence <= 1.0):
+            raise ValueError(f"Confidence score {self.confidence} must be within [0.0, 1.0].")
+        if not isinstance(self.language, str):
+            raise TypeError(f"language must be str, got {type(self.language).__name__}")
+        if not isinstance(self.is_recognized, bool):
+            raise TypeError("is_recognized must be a boolean.")
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Return a clean dictionary representation for logging and serialization."""
+        return {
+            "text": self.text,
+            "intent": self.intent,
+            "confidence": round(self.confidence, 4),
+            "language": self.language,
+            "is_recognized": self.is_recognized,
+            "matched_keywords": list(self.matched_keywords),
+            "metadata": dict(self.metadata),
+        }
+

@@ -6,9 +6,14 @@ Exports core models, language identification engines, and multilingual service c
 from src.multilingual.detector import (
     LanguageDetector,
 )
+from src.multilingual.intents import (
+    MultilingualIntentClassifier,
+)
 from src.multilingual.models import (
     LanguageCandidate,
     LanguageIdentificationResult,
+    MultilingualIntent,
+    MultilingualIntentResult,
     MultilingualTextRequest,
     SupportedLanguage,
 )
@@ -21,6 +26,10 @@ __all__ = [
     "LanguageCandidate",
     "LanguageIdentificationResult",
     "MultilingualTextRequest",
+    "MultilingualIntent",
+    "MultilingualIntentResult",
     "LanguageDetector",
+    "MultilingualIntentClassifier",
     "MultilingualService",
 ]
+
