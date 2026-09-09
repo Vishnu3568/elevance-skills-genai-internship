@@ -220,3 +220,94 @@ class MultilingualIntentResult:
             "metadata": dict(self.metadata),
         }
 
+
+# -----------------------------------------------------------------------------
+# Cross-Lingual Retrieval and Multilingual Response Contracts (Day 32)
+# -----------------------------------------------------------------------------
+
+@dataclass
+class CrossLingualRetrievalResult:
+    """Represents the outcome of cross-lingual query alignment and knowledge retrieval."""
+
+    original_query: str
+    detected_language: str
+    intent: str
+    aligned_query: str
+    retrieved_documents: List[Dict[str, Any]] = field(default_factory=list)
+    evidence_text: str = ""
+    is_evidence_found: bool = False
+    confidence: float = 0.0
+    metadata: Dict[str, Any] = field(default_factory=dict)
+
+    def __post_init__(self) -> None:
+        """Validate retrieval result invariants."""
+        if not isinstance(self.original_query, str):
+            raise TypeError("original_query must be str.")
+        if not isinstance(self.detected_language, str):
+            raise TypeError("detected_language must be str.")
+        if not isinstance(self.intent, str):
+            raise TypeError("intent must be str.")
+        if not isinstance(self.aligned_query, str):
+            raise TypeError("aligned_query must be str.")
+        if not (0.0 <= self.confidence <= 1.0):
+            raise ValueError(f"Confidence {self.confidence} must be in [0.0, 1.0].")
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Return dictionary representation of the retrieval result."""
+        return {
+            "original_query": self.original_query,
+            "detected_language": self.detected_language,
+            "intent": self.intent,
+            "aligned_query": self.aligned_query,
+            "retrieved_documents": [dict(d) for d in self.retrieved_documents],
+            "evidence_text": self.evidence_text,
+            "is_evidence_found": self.is_evidence_found,
+            "confidence": round(self.confidence, 4),
+            "metadata": dict(self.metadata),
+        }
+
+
+@dataclass
+class MultilingualResponse:
+    """Canonical contract for grounded multilingual answer generation and reasoning."""
+
+    query: str
+    language: str
+    intent: str
+    aligned_query: str
+    final_answer: str
+    raw_answer: str
+    is_grounded: bool = True
+    confidence_score: float = 0.0
+    source_documents: List[Dict[str, Any]] = field(default_factory=list)
+    metadata: Dict[str, Any] = field(default_factory=dict)
+
+    def __post_init__(self) -> None:
+        """Validate response invariants."""
+        if not isinstance(self.query, str):
+            raise TypeError("query must be str.")
+        if not isinstance(self.language, str):
+            raise TypeError("language must be str.")
+        if not isinstance(self.intent, str):
+            raise TypeError("intent must be str.")
+        if not isinstance(self.aligned_query, str):
+            raise TypeError("aligned_query must be str.")
+        if not isinstance(self.final_answer, str):
+            raise TypeError("final_answer must be str.")
+        if not (0.0 <= self.confidence_score <= 1.0):
+            raise ValueError(f"Confidence score {self.confidence_score} must be in [0.0, 1.0].")
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Return serialized response dictionary."""
+        return {
+            "query": self.query,
+            "language": self.language,
+            "intent": self.intent,
+            "aligned_query": self.aligned_query,
+            "final_answer": self.final_answer,
+            "raw_answer": self.raw_answer,
+            "is_grounded": self.is_grounded,
+            "confidence_score": round(self.confidence_score, 4),
+            "source_documents": [dict(d) for d in self.source_documents],
+            "metadata": dict(self.metadata),
+        }

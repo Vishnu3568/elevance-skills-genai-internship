@@ -10,12 +10,20 @@ from src.multilingual.intents import (
     MultilingualIntentClassifier,
 )
 from src.multilingual.models import (
+    CrossLingualRetrievalResult,
     LanguageCandidate,
     LanguageIdentificationResult,
     MultilingualIntent,
     MultilingualIntentResult,
+    MultilingualResponse,
     MultilingualTextRequest,
     SupportedLanguage,
+)
+from src.multilingual.reasoning import (
+    MultilingualReasoner,
+)
+from src.multilingual.retrieval import (
+    CrossLingualRetriever,
 )
 from src.multilingual.service import (
     MultilingualService,
@@ -28,8 +36,11 @@ __all__ = [
     "MultilingualTextRequest",
     "MultilingualIntent",
     "MultilingualIntentResult",
+    "CrossLingualRetrievalResult",
+    "MultilingualResponse",
     "LanguageDetector",
     "MultilingualIntentClassifier",
+    "CrossLingualRetriever",
+    "MultilingualReasoner",
     "MultilingualService",
 ]
-
