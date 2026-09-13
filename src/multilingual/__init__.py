@@ -3,6 +3,9 @@
 Exports core models, language identification engines, and multilingual service components.
 """
 
+from src.multilingual.context import (
+    MultilingualContextResolver,
+)
 from src.multilingual.detector import (
     LanguageDetector,
 )
@@ -13,6 +16,8 @@ from src.multilingual.models import (
     CrossLingualRetrievalResult,
     LanguageCandidate,
     LanguageIdentificationResult,
+    MultilingualConversationSession,
+    MultilingualConversationTurn,
     MultilingualIntent,
     MultilingualIntentResult,
     MultilingualResponse,
@@ -38,6 +43,9 @@ __all__ = [
     "MultilingualIntentResult",
     "CrossLingualRetrievalResult",
     "MultilingualResponse",
+    "MultilingualConversationTurn",
+    "MultilingualConversationSession",
+    "MultilingualContextResolver",
     "LanguageDetector",
     "MultilingualIntentClassifier",
     "CrossLingualRetriever",
