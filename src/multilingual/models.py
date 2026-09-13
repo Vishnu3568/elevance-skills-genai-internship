@@ -311,3 +311,105 @@ class MultilingualResponse:
             "source_documents": [dict(d) for d in self.source_documents],
             "metadata": dict(self.metadata),
         }
+
+
+# -----------------------------------------------------------------------------
+# Conversation & Session State Models (Day 33)
+# -----------------------------------------------------------------------------
+
+@dataclass
+class MultilingualConversationTurn:
+    """Represents a single conversational turn in a multilingual session."""
+
+    turn_id: int
+    query: str
+    resolved_query: str
+    language: str
+    intent: str
+    final_answer: str
+    topic: Optional[str] = None
+    is_grounded: bool = True
+    timestamp: str = ""
+    metadata: Dict[str, Any] = field(default_factory=dict)
+
+    def __post_init__(self) -> None:
+        """Validate turn invariants."""
+        if not isinstance(self.turn_id, int) or self.turn_id < 0:
+            raise ValueError("turn_id must be a non-negative integer.")
+        if not isinstance(self.query, str) or not self.query.strip():
+            raise ValueError("query must be a non-empty string.")
+        if not isinstance(self.language, str) or not self.language.strip():
+            raise ValueError("language must be a non-empty string.")
+        if not isinstance(self.intent, str) or not self.intent.strip():
+            raise ValueError("intent must be a non-empty string.")
+        if not isinstance(self.final_answer, str):
+            raise TypeError("final_answer must be str.")
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Return dictionary representation of the conversation turn."""
+        return {
+            "turn_id": self.turn_id,
+            "query": self.query,
+            "resolved_query": self.resolved_query,
+            "language": self.language,
+            "intent": self.intent,
+            "final_answer": self.final_answer,
+            "topic": self.topic,
+            "is_grounded": self.is_grounded,
+            "timestamp": self.timestamp,
+            "metadata": dict(self.metadata),
+        }
+
+
+@dataclass
+class MultilingualConversationSession:
+    """Bounded conversation session tracking multi-turn dialogue and language preferences."""
+
+    session_id: str
+    max_turns: int = 10
+    active_language: Optional[str] = None
+    turns: List[MultilingualConversationTurn] = field(default_factory=list)
+    metadata: Dict[str, Any] = field(default_factory=dict)
+
+    def __post_init__(self) -> None:
+        """Validate session invariants."""
+        if not isinstance(self.session_id, str) or not self.session_id.strip():
+            raise ValueError("session_id must be a non-empty string.")
+        if not isinstance(self.max_turns, int) or self.max_turns <= 0:
+            raise ValueError("max_turns must be a positive integer.")
+
+    def add_turn(self, turn: MultilingualConversationTurn) -> None:
+        """Add a completed turn and bound the history."""
+        if not isinstance(turn, MultilingualConversationTurn):
+            raise TypeError(f"Expected MultilingualConversationTurn, got {type(turn).__name__}")
+        self.turns.append(turn)
+        self.active_language = turn.language
+        if len(self.turns) > self.max_turns:
+            self.turns = self.turns[-self.max_turns:]
+
+    def get_last_turn(self) -> Optional[MultilingualConversationTurn]:
+        """Return the most recent conversation turn if any exists."""
+        return self.turns[-1] if self.turns else None
+
+    def get_history(self, limit: Optional[int] = None) -> List[MultilingualConversationTurn]:
+        """Return chronological turn history, optionally limited."""
+        if limit is not None and limit > 0:
+            return list(self.turns[-limit:])
+        return list(self.turns)
+
+    def clear(self) -> None:
+        """Reset conversation turns and session language."""
+        self.turns.clear()
+        self.active_language = None
+        self.metadata.clear()
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Return serialized session state."""
+        return {
+            "session_id": self.session_id,
+            "max_turns": self.max_turns,
+            "active_language": self.active_language,
+            "turn_count": len(self.turns),
+            "turns": [t.to_dict() for t in self.turns],
+            "metadata": dict(self.metadata),
+        }
