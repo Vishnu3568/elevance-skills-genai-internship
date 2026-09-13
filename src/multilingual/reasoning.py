@@ -108,12 +108,14 @@ class MultilingualReasoner:
         self,
         retrieval_result: CrossLingualRetrievalResult,
         target_language: Optional[str] = None,
+        conversation_history: Optional[List[Dict[str, Any]]] = None,
     ) -> MultilingualResponse:
         """Synthesize a grounded answer in the requested language from retrieved evidence.
 
         Args:
             retrieval_result (CrossLingualRetrievalResult): Outcome of cross-lingual retrieval.
             target_language (Optional[str]): Language for response generation (defaults to detected).
+            conversation_history (Optional[List[Dict[str, Any]]]): Prior conversational turns.
 
         Returns:
             MultilingualResponse: Grounded response payload.
@@ -165,10 +167,19 @@ class MultilingualReasoner:
         if llm is not None:
             try:
                 lang_name = SupportedLanguage.get_language_name(lang)
+                history_text = ""
+                if conversation_history:
+                    history_lines = [
+                        f"- User: {t.get('query', '')}\n  Assistant: {t.get('final_answer', '')}"
+                        for t in conversation_history[-3:]
+                    ]
+                    history_text = f"CONVERSATION HISTORY:\n" + "\n".join(history_lines) + "\n\n"
+
                 prompt_text = (
                     f"You are a helpful customer support assistant. Answer the user's question accurately "
                     f"and strictly in {lang_name} based ONLY on the following English evidence.\n"
                     f"If the evidence does not contain the answer, say you do not know.\n\n"
+                    f"{history_text}"
                     f"EVIDENCE:\n{retrieval_result.evidence_text}\n\n"
                     f"USER QUESTION ({lang_name}):\n{query}\n\n"
                     f"ANSWER IN {lang_name}:"
