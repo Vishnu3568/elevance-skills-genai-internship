@@ -113,6 +113,7 @@ class CrossLingualRetriever:
         text: str,
         language: str,
         intent_result: Optional[MultilingualIntentResult] = None,
+        context_topic: Optional[str] = None,
     ) -> str:
         """Construct a search-oriented English retrieval representation for any query.
 
@@ -120,6 +121,7 @@ class CrossLingualRetriever:
             text (str): Raw user query.
             language (str): Detected language code (e.g., 'es', 'fr', 'de', 'hi', 'en').
             intent_result (Optional[MultilingualIntentResult]): Intent classification outcome.
+            context_topic (Optional[str]): Prior conversation context/topic to enrich follow-ups.
 
         Returns:
             str: Aligned English search query.
@@ -129,9 +131,12 @@ class CrossLingualRetriever:
 
         intent_val = intent_result.intent if intent_result else MultilingualIntent.GENERAL_INQUIRY.value
 
-        # If already English, use the original text enriched with intent if helpful
+        # If already English, use the original text enriched with context topic if needed
         if language == SupportedLanguage.ENGLISH.value:
-            return text.strip()
+            base_en = text.strip()
+            if context_topic and context_topic.lower() not in base_en.lower():
+                return f"{base_en} {context_topic}".strip()
+            return base_en
 
         # Build aligned query from intent template
         template = INTENT_RETRIEVAL_TEMPLATES.get(intent_val, "course training information")
@@ -157,6 +162,9 @@ class CrossLingualRetriever:
         else:
             aligned = template
 
+        if context_topic and context_topic.lower() not in aligned.lower():
+            aligned = f"{aligned} {context_topic}"
+
         return aligned.strip()
 
     def retrieve(
@@ -165,6 +173,7 @@ class CrossLingualRetriever:
         language: str,
         intent_result: Optional[MultilingualIntentResult] = None,
         top_k: int = 3,
+        context_topic: Optional[str] = None,
     ) -> CrossLingualRetrievalResult:
         """Execute cross-lingual retrieval against the English knowledge base.
 
@@ -173,6 +182,7 @@ class CrossLingualRetriever:
             language (str): Detected language code.
             intent_result (Optional[MultilingualIntentResult]): Day 31 intent result.
             top_k (int): Maximum documents to retrieve.
+            context_topic (Optional[str]): Optional conversation context topic for follow-ups.
 
         Returns:
             CrossLingualRetrievalResult: Structured retrieval result.
@@ -206,7 +216,7 @@ class CrossLingualRetriever:
                 metadata={"type": "conversational_greeting"},
             )
 
-        aligned_query = self.construct_aligned_query(query, language, intent_result)
+        aligned_query = self.construct_aligned_query(query, language, intent_result, context_topic=context_topic)
 
         # 1. Custom search function hook (for test isolation)
         if self._custom_search_fn is not None:
