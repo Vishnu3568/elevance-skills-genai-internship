@@ -86,6 +86,8 @@ class LanguageIdentificationResult:
     candidates: List[LanguageCandidate] = field(default_factory=list)
     is_reliable: bool = True
     detected_script: Optional[str] = None
+    is_mixed_language: bool = False
+    secondary_language: Optional[str] = None
     metadata: Dict[str, Any] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
@@ -100,6 +102,8 @@ class LanguageIdentificationResult:
             raise TypeError("is_supported must be a boolean.")
         if not isinstance(self.is_reliable, bool):
             raise TypeError("is_reliable must be a boolean.")
+        if not isinstance(self.is_mixed_language, bool):
+            raise TypeError("is_mixed_language must be a boolean.")
 
     def to_dict(self) -> Dict[str, Any]:
         """Return a clean dictionary representation for logging and serialization."""
@@ -111,6 +115,8 @@ class LanguageIdentificationResult:
             "language_name": self.language_name,
             "is_reliable": self.is_reliable,
             "detected_script": self.detected_script,
+            "is_mixed_language": self.is_mixed_language,
+            "secondary_language": self.secondary_language,
             "candidates": [c.to_dict() for c in self.candidates],
             "metadata": dict(self.metadata),
         }
@@ -193,6 +199,8 @@ class MultilingualIntentResult:
     language: str
     is_recognized: bool = True
     matched_keywords: List[str] = field(default_factory=list)
+    is_ambiguous: bool = False
+    competing_intents: List[str] = field(default_factory=list)
     metadata: Dict[str, Any] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
@@ -207,6 +215,8 @@ class MultilingualIntentResult:
             raise TypeError(f"language must be str, got {type(self.language).__name__}")
         if not isinstance(self.is_recognized, bool):
             raise TypeError("is_recognized must be a boolean.")
+        if not isinstance(self.is_ambiguous, bool):
+            raise TypeError("is_ambiguous must be a boolean.")
 
     def to_dict(self) -> Dict[str, Any]:
         """Return a clean dictionary representation for logging and serialization."""
@@ -216,6 +226,8 @@ class MultilingualIntentResult:
             "confidence": round(self.confidence, 4),
             "language": self.language,
             "is_recognized": self.is_recognized,
+            "is_ambiguous": self.is_ambiguous,
+            "competing_intents": list(self.competing_intents),
             "matched_keywords": list(self.matched_keywords),
             "metadata": dict(self.metadata),
         }
@@ -279,6 +291,8 @@ class MultilingualResponse:
     raw_answer: str
     is_grounded: bool = True
     confidence_score: float = 0.0
+    is_ambiguous: bool = False
+    clarification_prompt: Optional[str] = None
     source_documents: List[Dict[str, Any]] = field(default_factory=list)
     metadata: Dict[str, Any] = field(default_factory=dict)
 
@@ -296,6 +310,8 @@ class MultilingualResponse:
             raise TypeError("final_answer must be str.")
         if not (0.0 <= self.confidence_score <= 1.0):
             raise ValueError(f"Confidence score {self.confidence_score} must be in [0.0, 1.0].")
+        if not isinstance(self.is_ambiguous, bool):
+            raise TypeError("is_ambiguous must be a boolean.")
 
     def to_dict(self) -> Dict[str, Any]:
         """Return serialized response dictionary."""
@@ -308,6 +324,8 @@ class MultilingualResponse:
             "raw_answer": self.raw_answer,
             "is_grounded": self.is_grounded,
             "confidence_score": round(self.confidence_score, 4),
+            "is_ambiguous": self.is_ambiguous,
+            "clarification_prompt": self.clarification_prompt,
             "source_documents": [dict(d) for d in self.source_documents],
             "metadata": dict(self.metadata),
         }
