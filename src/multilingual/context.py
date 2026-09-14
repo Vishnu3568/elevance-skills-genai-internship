@@ -37,7 +37,7 @@ PRONOUN_PATTERNS: Dict[str, re.Pattern[str]] = {
         re.IGNORECASE,
     ),
     SupportedLanguage.HINDI.value: re.compile(
-        r"(इसका|इसकी|इसके|यह|ये|उसका|उसकी|उसके|वह|कोर्स|बूटकैंप|कार्यक्रम|नीति)",
+        r"(?:इसका|इसकी|इसके|यह|ये|उसका|उसकी|उसके|वह|कोर्स|बूटकैंप|कार्यक्रम|नीति|\b(?:is\s+course|iss\s+course|iski|iska|iske|yeh|woh|is\s+program|iss\s+program)\b)",
         re.IGNORECASE,
     ),
 }
@@ -61,6 +61,7 @@ ELLIPSIS_OR_FOLLOWUP_STARTS: Dict[str, Tuple[str, ...]] = {
     ),
     SupportedLanguage.HINDI.value: (
         "और ", "क्या ", "कितनी ", "कितना ", "इसकी ", "इसके ", "अवधि", "फीस", "योग्यता", "शर्तें",
+        "is course ki ", "iss course ki ", "iski ", "iska ", "aur ", "kya ", "kitni ",
     ),
 }
 
@@ -139,8 +140,32 @@ class MultilingualContextResolver:
             return text, None, False
 
         # Extract topic from prior turn
-        prior_topic = last_turn.topic or INTENT_TOPIC_NAMES.get(last_turn.intent, "data science bootcamp")
+        prior_topic = last_turn.topic or cls.extract_topic(last_turn.query, intent=last_turn.intent)
 
         # Create resolved query incorporating previous context topic
         resolved_text = f"{text} (context: {prior_topic})"
         return resolved_text, prior_topic, True
+
+    @classmethod
+    def extract_topic(cls, text: str, intent: Optional[str] = None) -> str:
+        """Extract a clean topic descriptor from a turn's query or intent."""
+        t_low = (text or "").lower()
+        if intent and intent in INTENT_TOPIC_NAMES and intent != MultilingualIntent.GENERAL_INQUIRY.value:
+            intent_name = INTENT_TOPIC_NAMES[intent]
+            if "python" in t_low:
+                return f"Python {intent_name}"
+            if "machine learning" in t_low or "ml" in t_low:
+                return f"Machine Learning {intent_name}"
+            if "data science" in t_low:
+                return f"Data Science {intent_name}"
+            return intent_name
+
+        if "python" in t_low:
+            return "Python bootcamp"
+        if "machine learning" in t_low or "ml" in t_low:
+            return "Machine Learning course"
+        if "data science" in t_low:
+            return "Data Science course"
+        if intent and intent in INTENT_TOPIC_NAMES:
+            return INTENT_TOPIC_NAMES[intent]
+        return "data science course"
