@@ -90,6 +90,14 @@ LANGUAGE_STOPWORDS: Dict[str, Set[str]] = {
     },
 }
 
+# Romanized Hindi (Hinglish) marker tokens
+HINGLISH_MARKERS: Set[str] = {
+    "kya", "hai", "hain", "ke", "ki", "ka", "ko", "se", "aur", "mein", "par",
+    "kitni", "kitna", "kaise", "batao", "bataiye", "chahiye", "milega", "hoga",
+    "karo", "karna", "yeh", "woh", "iss", "iski", "iska", "iske", "kuch", "nahi",
+    "bhi", "toh", "sirf", "mujhe", "aapko", "hum", "tum",
+}
+
 # Diacritical/script markers that strongly signal particular languages
 LANGUAGE_DIACRITICS: Dict[str, Set[str]] = {
     SupportedLanguage.SPANISH.value: {"ñ", "¿", "¡", "á", "é", "í", "ó", "ú", "ü"},
@@ -159,6 +167,8 @@ class LanguageDetector:
             return "None"
         if (devanagari_count / alpha_count) >= 0.30:
             return "Devanagari"
+        if devanagari_count > 0:
+            return "Mixed-Devanagari-Latin"
         return "Latin"
 
     def _extract_words(self, text: str) -> List[str]:
@@ -191,6 +201,8 @@ class LanguageDetector:
                 language_name="Unknown",
                 is_reliable=False,
                 detected_script="None",
+                is_mixed_language=False,
+                secondary_language=None,
                 metadata={"reason": "Non-string or None input"},
             )
 
@@ -204,6 +216,8 @@ class LanguageDetector:
                 language_name="Unknown",
                 is_reliable=False,
                 detected_script="None",
+                is_mixed_language=False,
+                secondary_language=None,
                 metadata={"reason": "Empty or whitespace-only input"},
             )
 
@@ -218,6 +232,8 @@ class LanguageDetector:
                 language_name="Unknown",
                 is_reliable=False,
                 detected_script="Non-Alphabetic",
+                is_mixed_language=False,
+                secondary_language=None,
                 metadata={"reason": "No alphabetic characters in text"},
             )
 
@@ -231,38 +247,69 @@ class LanguageDetector:
                 # Fall back gracefully to internal statistical detector
                 pass
 
-        # 1. Script Analysis
+        # 1. Script & Sub-Token Analysis
         script = self._extract_script(stripped)
-        if script == "Devanagari":
-            devanagari_count = sum(1 for c in stripped if self._is_devanagari_char(c))
-            confidence = min(0.99, max(0.70, devanagari_count / len(alpha_chars)))
+        words = self._extract_words(stripped)
+        trigrams = self._extract_trigrams(stripped)
+        devanagari_count = sum(1 for c in stripped if self._is_devanagari_char(c))
+
+        # Check for mixed Devanagari + Latin words
+        has_latin_words = any(any(c.isascii() and c.isalpha() for c in w) for w in words)
+        is_mixed_script = devanagari_count > 0 and has_latin_words
+
+        if script == "Devanagari" or (devanagari_count / len(alpha_chars)) >= 0.25:
+            confidence = min(0.99, max(0.65, devanagari_count / len(alpha_chars)))
+            candidates = [
+                LanguageCandidate(
+                    language=SupportedLanguage.HINDI.value,
+                    confidence=confidence,
+                    language_name="Hindi",
+                )
+            ]
+            if is_mixed_script:
+                en_conf = round(min(0.45, 1.0 - confidence + 0.15), 4)
+                candidates.append(
+                    LanguageCandidate(
+                        language=SupportedLanguage.ENGLISH.value,
+                        confidence=en_conf,
+                        language_name="English",
+                    )
+                )
+
             return LanguageIdentificationResult(
                 text=text,
                 language=SupportedLanguage.HINDI.value,
                 confidence=confidence,
                 is_supported=True,
                 language_name=SupportedLanguage.get_language_name(SupportedLanguage.HINDI.value),
-                candidates=[
-                    LanguageCandidate(
-                        language=SupportedLanguage.HINDI.value,
-                        confidence=confidence,
-                        language_name="Hindi",
-                    )
-                ],
+                candidates=candidates,
                 is_reliable=confidence >= self.confidence_threshold,
-                detected_script="Devanagari",
-                metadata={"script": "Devanagari", "devanagari_ratio": round(devanagari_count / len(alpha_chars), 3)},
+                detected_script="Mixed-Devanagari-Latin" if is_mixed_script else "Devanagari",
+                is_mixed_language=is_mixed_script,
+                secondary_language=SupportedLanguage.ENGLISH.value if is_mixed_script else None,
+                metadata={
+                    "script": "Devanagari",
+                    "devanagari_ratio": round(devanagari_count / len(alpha_chars), 3),
+                    "is_mixed_script": is_mixed_script,
+                },
             )
 
-        # 2. Latin-Script Language Analysis (English, Spanish, French, German)
-        words = self._extract_words(stripped)
-        trigrams = self._extract_trigrams(stripped)
+        # 2. Latin-Script Language Analysis (English, Spanish, French, German, Hinglish)
         scores: Dict[str, float] = {
             SupportedLanguage.ENGLISH.value: 0.0,
             SupportedLanguage.SPANISH.value: 0.0,
             SupportedLanguage.FRENCH.value: 0.0,
             SupportedLanguage.GERMAN.value: 0.0,
+            SupportedLanguage.HINDI.value: 0.0,
         }
+
+        matched_stopwords_by_lang: Dict[str, List[str]] = {lang: [] for lang in scores}
+
+        # Hinglish / Romanized Hindi matching
+        for word in words:
+            if word in HINGLISH_MARKERS:
+                scores[SupportedLanguage.HINDI.value] += 2.2
+                matched_stopwords_by_lang[SupportedLanguage.HINDI.value].append(word)
 
         # Diacritics matching (High-precision signal)
         lower_text = stripped.lower()
@@ -276,6 +323,7 @@ class LanguageDetector:
             for lang_code, stopwords in LANGUAGE_STOPWORDS.items():
                 if lang_code in scores and word in stopwords:
                     scores[lang_code] += 1.8
+                    matched_stopwords_by_lang[lang_code].append(word)
 
         # Trigram matching (Robust background signal)
         if trigrams:
@@ -290,6 +338,8 @@ class LanguageDetector:
 
         if total_score > 0.0:
             for lang_code, raw_score in scores.items():
+                if raw_score <= 0.0:
+                    continue
                 prob = raw_score / total_score
                 # Scale probability smoothly based on evidence strength
                 confidence_multiplier = min(1.0, math.sqrt(total_score / 2.0))
@@ -308,11 +358,36 @@ class LanguageDetector:
             is_reliable = top_conf >= self.confidence_threshold and (
                 len(candidates) == 1 or (top_conf - candidates[1].confidence) >= 0.05
             )
+
+            # Check for genuine mixed-language / code-switching
+            is_mixed = False
+            secondary_lang: Optional[str] = None
+            if len(candidates) >= 2 and candidates[1].confidence >= 0.18:
+                c1_lang = candidates[0].language
+                c2_lang = candidates[1].language
+                c1_words = set(matched_stopwords_by_lang[c1_lang])
+                c2_words = set(matched_stopwords_by_lang[c2_lang])
+
+                # Distinct non-overlapping stopword evidence
+                c1_unique = c1_words - c2_words
+                c2_unique = c2_words - c1_words
+
+                if len(c1_unique) > 0 and len(c2_unique) > 0:
+                    is_mixed = True
+                    secondary_lang = c2_lang
+                elif c1_lang == SupportedLanguage.HINDI.value and len(c1_words) > 0 and has_latin_words:
+                    is_mixed = True
+                    secondary_lang = SupportedLanguage.ENGLISH.value
+                elif c2_lang == SupportedLanguage.HINDI.value and len(c2_words) > 0 and has_latin_words:
+                    is_mixed = True
+                    secondary_lang = SupportedLanguage.HINDI.value
         else:
             # Insufficient lexical or n-gram evidence
             top_lang = SupportedLanguage.UNKNOWN.value
             top_conf = 0.0
             is_reliable = False
+            is_mixed = False
+            secondary_lang = None
 
         return LanguageIdentificationResult(
             text=text,
@@ -323,9 +398,12 @@ class LanguageDetector:
             candidates=candidates,
             is_reliable=is_reliable,
             detected_script=script,
+            is_mixed_language=is_mixed,
+            secondary_language=secondary_lang,
             metadata={
                 "word_count": len(words),
                 "trigram_count": len(trigrams),
                 "raw_scores": {k: round(v, 2) for k, v in scores.items()},
+                "matched_stopwords": {k: v for k, v in matched_stopwords_by_lang.items() if v},
             },
         )
