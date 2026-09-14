@@ -44,7 +44,7 @@ INTENT_LEXICON: Dict[str, Dict[str, List[str]]] = {
             r"\b(?:contact\s+(?:the\s+)?instructors?|discord(?:\s+community|\s+server)?|reach\s+out|ask\s+questions?|doubts?\s+support|email\s+support|customer\s+care)\b",
         ],
         MultilingualIntent.PAYMENT_PRICING.value: [
-            r"\b(?:emi(?:\s+options?)?|installments?|pricing|cost|price|fee|discounts?|payment\s+options?)\b",
+            r"\b(?:emi(?:\s+options?)?|installments?|pricing|costs?|prices?|fees?|discounts?|payment\s+options?)\b",
         ],
         MultilingualIntent.TECHNICAL_SUPPORT.value: [
             r"\b(?:error|bug|spill\s+error|install\s+power\s+pivot|excel\s+formula|power\s+bi\s+(?:on|in)\s+mac|virtual\s+machine|code\s+(?:is\s+)?not\s+working)\b",
@@ -142,32 +142,40 @@ INTENT_LEXICON: Dict[str, Dict[str, List[str]]] = {
     },
 
     # -------------------------------------------------------------------------
-    # 5. Hindi (hi)
+    # 5. Hindi (hi) & Hinglish (Romanized Hindi)
     # -------------------------------------------------------------------------
     SupportedLanguage.HINDI.value: {
         MultilingualIntent.GREETING.value: [
             r"(?:नमस्ते|नमस्कार|प्रणाम|हैलो|हेलो|सुप्रभात)",
+            r"\b(?:namaste|namaskar|hello|hi|hey|kaise\s+ho)\b",
         ],
         MultilingualIntent.REFUND_POLICY.value: [
             r"(?:रिफंड|वापसी|पैसे\s+वापस|रद्द|कैंसल|रिफंड\s+नीति|धनवापसी)",
+            r"\b(?:refund|paisa\s+wapas|paise\s+wapas|cancel\s+karna|money\s+back|refund\s+policy|refund\s+milega)\b",
         ],
         MultilingualIntent.PREREQUISITES.value: [
             r"(?:शुरुआती|योग्यता|कोडिंग\s+अनुभव|प्रोग्रामिंग\s+ज्ञान|गैर-तकनीकी|लैपटॉप|रैम|ज़रूरत|पूर्व\s+अनुभव)",
+            r"\b(?:prerequisites?|prerequisite\s+kya|coding\s+chahiye|programming\s+knowledge|beginner|non-technical|4gb\s+ram|laptop|system\s+requirements?)\b",
         ],
         MultilingualIntent.COURSE_DETAILS.value: [
             r"(?:अवधि|कितना\s+समय|लाइफटाइम\s+एक्सेस|आजीवन\s+पहुंच|पाठ्यक्रम|सिलेबस|विषय|शेड्यूल|डेटासेट)",
+            r"\b(?:duration|kitna\s+time|kitne\s+din|kitne\s+mahine|lifetime\s+access|syllabus|curriculum|topics?\s+covered|schedule|datasets?)\b",
         ],
         MultilingualIntent.CAREER_ASSISTANCE.value: [
             r"(?:नौकरी|जॉब|इंटर्नशिप|रिज्यूमे|प्लेसमेंट|साक्षात्कार|कैरियर\s+सपोर्ट|जॉब\s+गारंटी)",
+            r"\b(?:job\s+assistance|job\s+milegi|placement|resume|internship|interview\s+prep|career\s+support|job\s+guarantee)\b",
         ],
         MultilingualIntent.SUPPORT_CONTACT.value: [
             r"(?:संपर्क|शिक्षक\s+से\s+संपर्क|डिस्कॉर्ड|सपोर्ट|सवाल|संदेह|कम्युनिटी|सहायता)",
+            r"\b(?:contact|instructor\s+se\s+contact|discord|mentor|doubt\s+support|help\s+chahiye|customer\s+care)\b",
         ],
         MultilingualIntent.PAYMENT_PRICING.value: [
             r"(?:ईएमआई|किस्त|कीमत|फीस|भुगतान|लागत|छूट|किस्तों\s+में)",
+            r"\b(?:emi|fees|kitni\s+fees|kitna\s+price|cost|pricing|discount|installments?|fees\s+kitni|price\s+kya)\b",
         ],
         MultilingualIntent.TECHNICAL_SUPPORT.value: [
             r"(?:त्रुटि|बग|एरर|फार्मूला|कोड\s+काम\s+नहीं\s+कर\s+रहा|इंस्टॉल|मैक\s+पर\s+पॉवर\s+बीआई)",
+            r"\b(?:error|bug|install|formula|power\s+bi\s+on\s+mac|macbook|virtual\s+machine|code\s+not\s+working|error\s+aa\s+raha)\b",
         ],
     },
 }
@@ -221,6 +229,8 @@ class MultilingualIntentClassifier:
                 confidence=0.0,
                 language=SupportedLanguage.UNKNOWN.value,
                 is_recognized=False,
+                is_ambiguous=False,
+                competing_intents=[],
                 matched_keywords=[],
                 metadata={"reason": "Non-string or None input"},
             )
@@ -233,6 +243,8 @@ class MultilingualIntentClassifier:
                 confidence=0.0,
                 language=SupportedLanguage.UNKNOWN.value,
                 is_recognized=False,
+                is_ambiguous=False,
+                competing_intents=[],
                 matched_keywords=[],
                 metadata={"reason": "Empty or whitespace-only input"},
             )
@@ -246,6 +258,8 @@ class MultilingualIntentClassifier:
                 confidence=0.0,
                 language=SupportedLanguage.UNKNOWN.value,
                 is_recognized=False,
+                is_ambiguous=False,
+                competing_intents=[],
                 matched_keywords=[],
                 metadata={"reason": "No alphabetic characters in query"},
             )
@@ -266,6 +280,11 @@ class MultilingualIntentClassifier:
         # Include English fallback for cross-lingual terms (like 'discord', 'mac', '4gb ram')
         if effective_lang != SupportedLanguage.ENGLISH.value and SupportedLanguage.ENGLISH.value not in lang_profiles:
             lang_profiles.append(SupportedLanguage.ENGLISH.value)
+        # Also include Hindi/Hinglish profile if text has Romanized Hindi markers
+        if SupportedLanguage.HINDI.value not in lang_profiles:
+            words = set(re.findall(r"[\w']+", norm_query))
+            if words & {"kya", "hai", "hain", "ke", "ki", "ka", "kitni", "kitna", "kaise", "milega", "chahiye"}:
+                lang_profiles.append(SupportedLanguage.HINDI.value)
 
         for lang in lang_profiles:
             intents_for_lang = INTENT_LEXICON.get(lang, {})
@@ -291,6 +310,16 @@ class MultilingualIntentClassifier:
             sorted_candidates = sorted(candidate_scores.items(), key=lambda x: x[1][0], reverse=True)
             best_intent, (best_score, matched_kw) = sorted_candidates[0]
 
+            # Detect genuine multi-intent / ambiguity collision
+            is_ambiguous = False
+            competing_intents: List[str] = [best_intent]
+            if len(sorted_candidates) >= 2:
+                c1_intent, (c1_score, _) = sorted_candidates[0]
+                c2_intent, (c2_score, _) = sorted_candidates[1]
+                if c1_score >= 0.80 and c2_score >= 0.80 and abs(c1_score - c2_score) <= 0.06 and c1_intent != c2_intent:
+                    is_ambiguous = True
+                    competing_intents = [c1_intent, c2_intent]
+
             # Ensure confidence is strictly within [0.0, 1.0]
             confidence = min(1.0, max(0.0, best_score))
             is_recognized = confidence >= self.confidence_threshold
@@ -301,10 +330,14 @@ class MultilingualIntentClassifier:
                 confidence=confidence,
                 language=effective_lang,
                 is_recognized=is_recognized,
+                is_ambiguous=is_ambiguous,
+                competing_intents=competing_intents,
                 matched_keywords=matched_kw,
                 metadata={
                     "total_intent_matches": len(sorted_candidates),
                     "all_candidates": {k: round(v[0], 3) for k, v in sorted_candidates},
+                    "is_ambiguous": is_ambiguous,
+                    "competing_intents": competing_intents,
                 },
             )
 
@@ -315,6 +348,8 @@ class MultilingualIntentClassifier:
             confidence=0.60,
             language=effective_lang,
             is_recognized=True,
+            is_ambiguous=False,
+            competing_intents=[],
             matched_keywords=[],
             metadata={"reason": "Grounded fallback general query"},
         )
