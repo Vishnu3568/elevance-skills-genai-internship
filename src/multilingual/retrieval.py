@@ -62,6 +62,13 @@ TECHNICAL_KEYWORD_MAP: Dict[str, str] = {
     "power bi": "power bi",
     "excel": "excel",
     "mac": "mac",
+    "paisa wapas": "refund",
+    "paise wapas": "refund",
+    "kitni fees": "fees pricing",
+    "kitna time": "duration schedule",
+    "job milegi": "job placement assistance",
+    "prerequisites kya": "prerequisites requirements",
+    "coding chahiye": "programming prerequisites",
 }
 
 
@@ -233,7 +240,12 @@ class CrossLingualRetriever:
                 evidence_text=evidence,
                 is_evidence_found=is_found,
                 confidence=conf,
-                metadata={"retriever_source": "custom_fn", "doc_count": len(docs)},
+                metadata={
+                    "retriever_source": "custom_fn",
+                    "doc_count": len(docs),
+                    "is_ambiguous": intent_result.is_ambiguous if intent_result else False,
+                    "competing_intents": intent_result.competing_intents if intent_result else [],
+                },
             )
 
         # 2. Production FAISS vector store retrieval
@@ -281,5 +293,7 @@ class CrossLingualRetriever:
             metadata={
                 "retriever_source": "faiss_production" if retriever else "unloaded",
                 "doc_count": len(retrieved_docs),
+                "is_ambiguous": intent_result.is_ambiguous if intent_result else False,
+                "competing_intents": intent_result.competing_intents if intent_result else [],
             },
         )
