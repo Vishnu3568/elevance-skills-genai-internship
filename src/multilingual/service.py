@@ -158,6 +158,8 @@ class MultilingualService:
             raw_answer=processed["response"]["raw_answer"],
             is_grounded=processed["is_grounded"],
             confidence_score=processed["response"]["confidence_score"],
+            is_ambiguous=processed["response"].get("is_ambiguous", False),
+            clarification_prompt=processed["response"].get("clarification_prompt"),
             source_documents=processed["retrieval"]["retrieved_documents"],
             metadata=processed["response"]["metadata"],
         )
