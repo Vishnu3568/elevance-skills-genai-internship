@@ -35,6 +35,14 @@ LOCALIZED_UNKNOWN_RESPONSES: Dict[str, str] = {
     SupportedLanguage.HINDI.value: "सटीक उत्तर देने के लिए ज्ञानकोष में पर्याप्त जानकारी उपलब्ध नहीं है।",
 }
 
+LOCALIZED_CLARIFICATION_PROMPTS: Dict[str, str] = {
+    SupportedLanguage.ENGLISH.value: "Could you please clarify whether you are asking about course details, fees, prerequisites, or refund policy?",
+    SupportedLanguage.SPANISH.value: "¿Podrías aclarar si preguntas sobre los detalles del curso, precios, requisitos o política de reembolso?",
+    SupportedLanguage.FRENCH.value: "Pourriez-vous préciser si votre question concerne le programme, les tarifs, les prérequis ou le remboursement?",
+    SupportedLanguage.GERMAN.value: "Könnten Sie bitte präzisieren, ob Sie nach Kursdetails, Gebühren, Voraussetzungen oder Rückerstattung fragen?",
+    SupportedLanguage.HINDI.value: "कृपया स्पष्ट करें कि क्या आप कोर्स विवरण, फीस, योग्यता या रिफंड नीति के बारे में पूछ रहे हैं?",
+}
+
 LOCALIZED_INTENT_SUMMARIES: Dict[str, Dict[str, str]] = {
     MultilingualIntent.REFUND_POLICY.value: {
         SupportedLanguage.SPANISH.value: "Política de reembolso: ofrecemos un reembolso del 100% según las pautas de nuestra política de reembolso de cursos.",
@@ -103,7 +111,6 @@ class MultilingualReasoner:
                 pass
         return None
 
-
     def reason(
         self,
         retrieval_result: CrossLingualRetrievalResult,
@@ -123,6 +130,8 @@ class MultilingualReasoner:
         query = retrieval_result.original_query
         lang = target_language or retrieval_result.detected_language
         intent = retrieval_result.intent
+        is_ambiguous = bool(retrieval_result.metadata.get("is_ambiguous", False))
+        competing_intents: List[str] = retrieval_result.metadata.get("competing_intents", [])
 
         # 1. Conversational Greeting
         if intent == MultilingualIntent.GREETING.value:
@@ -139,6 +148,8 @@ class MultilingualReasoner:
                 raw_answer=greeting_msg,
                 is_grounded=True,
                 confidence_score=0.95,
+                is_ambiguous=False,
+                clarification_prompt=None,
                 source_documents=[],
                 metadata={"reasoning_type": "greeting_handler"},
             )
@@ -149,6 +160,10 @@ class MultilingualReasoner:
                 lang,
                 LOCALIZED_UNKNOWN_RESPONSES[SupportedLanguage.ENGLISH.value],
             )
+            clarification = LOCALIZED_CLARIFICATION_PROMPTS.get(
+                lang,
+                LOCALIZED_CLARIFICATION_PROMPTS[SupportedLanguage.ENGLISH.value],
+            )
             return MultilingualResponse(
                 query=query,
                 language=lang,
@@ -158,6 +173,8 @@ class MultilingualReasoner:
                 raw_answer="I don't know.",
                 is_grounded=False,
                 confidence_score=0.0,
+                is_ambiguous=is_ambiguous,
+                clarification_prompt=clarification if is_ambiguous else None,
                 source_documents=retrieval_result.retrieved_documents,
                 metadata={"reasoning_type": "insufficient_evidence_fallback"},
             )
@@ -178,6 +195,7 @@ class MultilingualReasoner:
                 prompt_text = (
                     f"You are a helpful customer support assistant. Answer the user's question accurately "
                     f"and strictly in {lang_name} based ONLY on the following English evidence.\n"
+                    f"If the question addresses multiple topics, answer each topic clearly.\n"
                     f"If the evidence does not contain the answer, say you do not know.\n\n"
                     f"{history_text}"
                     f"EVIDENCE:\n{retrieval_result.evidence_text}\n\n"
@@ -202,6 +220,8 @@ class MultilingualReasoner:
                         raw_answer=raw_text.strip(),
                         is_grounded=True,
                         confidence_score=0.90,
+                        is_ambiguous=is_ambiguous,
+                        clarification_prompt=None,
                         source_documents=retrieval_result.retrieved_documents,
                         metadata={"reasoning_type": "llm_grounded_synthesis"},
                     )
@@ -210,21 +230,33 @@ class MultilingualReasoner:
                 pass
 
         # 4. Deterministic Offline Synthesis (Grounded in retrieved evidence & intent)
-        # Check if localized template exists for this intent & language
-        intent_templates = LOCALIZED_INTENT_SUMMARIES.get(intent, {})
-        if lang in intent_templates:
-            localized_ans = intent_templates[lang]
-        elif lang == SupportedLanguage.ENGLISH.value:
-            # Extract raw response from English document if available
-            doc_content = retrieval_result.retrieved_documents[0]["page_content"]
-            if "response:" in doc_content.lower():
-                localized_ans = doc_content.split("response:", 1)[-1].strip()
+        # Check for multi-intent / ambiguous synthesis
+        if is_ambiguous and competing_intents:
+            combined_parts: List[str] = []
+            for ci in competing_intents:
+                ci_templates = LOCALIZED_INTENT_SUMMARIES.get(ci, {})
+                if lang in ci_templates:
+                    combined_parts.append(ci_templates[lang])
+            if combined_parts:
+                localized_ans = "\n\n".join(combined_parts)
             else:
+                doc_content = retrieval_result.retrieved_documents[0]["page_content"]
                 localized_ans = doc_content.strip()
         else:
-            # General fallback summarizing English evidence
-            doc_content = retrieval_result.retrieved_documents[0]["page_content"]
-            localized_ans = f"[{SupportedLanguage.get_language_name(lang)}] {doc_content.strip()}"
+            intent_templates = LOCALIZED_INTENT_SUMMARIES.get(intent, {})
+            if lang in intent_templates:
+                localized_ans = intent_templates[lang]
+            elif lang == SupportedLanguage.ENGLISH.value:
+                # Extract raw response from English document if available
+                doc_content = retrieval_result.retrieved_documents[0]["page_content"]
+                if "response:" in doc_content.lower():
+                    localized_ans = doc_content.split("response:", 1)[-1].strip()
+                else:
+                    localized_ans = doc_content.strip()
+            else:
+                # General fallback summarizing English evidence
+                doc_content = retrieval_result.retrieved_documents[0]["page_content"]
+                localized_ans = f"[{SupportedLanguage.get_language_name(lang)}] {doc_content.strip()}"
 
         return MultilingualResponse(
             query=query,
@@ -235,6 +267,8 @@ class MultilingualReasoner:
             raw_answer=retrieval_result.evidence_text[:200],
             is_grounded=True,
             confidence_score=0.85,
+            is_ambiguous=is_ambiguous,
+            clarification_prompt=None,
             source_documents=retrieval_result.retrieved_documents,
             metadata={"reasoning_type": "deterministic_grounded_synthesis"},
         )
