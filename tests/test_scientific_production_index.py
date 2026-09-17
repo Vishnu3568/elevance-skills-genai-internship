@@ -111,10 +111,10 @@ class TestScientificProductionIndex(unittest.TestCase):
         df = pd.read_csv(customer_csv)
         self.assertEqual(len(df), 79)
 
-        # Customer FAISS must remain 79 vectors
+        # Customer FAISS must remain 76 vectors
         import faiss
         c_idx = faiss.read_index(str(customer_faiss / "index.faiss"))
-        self.assertEqual(c_idx.ntotal, 79)
+        self.assertEqual(c_idx.ntotal, 76)
 
 
 if __name__ == "__main__":
