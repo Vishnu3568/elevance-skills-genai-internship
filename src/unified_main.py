@@ -93,6 +93,16 @@ def render_sidebar() -> Tuple[Optional[str], Optional[Any]]:
     elif domain_choice == "Multimodal Intelligence":
         domain_override = DomainType.MULTIMODAL.value
 
+    with st.sidebar.expander("ℹ️ Task Architecture Guide", expanded=False):
+        st.markdown(
+            "**ElevanceSkills GenAI Tasks**:\n"
+            "- **Tasks 1 & 3**: *Customer Support* integrates RoBERTa sentiment conditioning (Task 1) and dynamic FAQ knowledge base sync (Task 3).\n"
+            "- **Task 2**: *Medical Q&A* uses NIH MedQuAD clinical RAG with 5 safety states.\n"
+            "- **Task 4**: *Scientific Research* searches and synthesizes 100 arXiv AI/ML papers.\n"
+            "- **Task 5**: *Multimodal AI* analyzes images, audio, and document attachments.\n"
+            "- **Task 6**: *Multilingual* is a cross-cutting capability automatically detecting and processing EN, ES, FR, DE, and HI across all domains."
+        )
+
     st.sidebar.markdown("---")
     st.sidebar.subheader("🖼️ Multimodal Image Upload")
     uploaded_file = st.sidebar.file_uploader(
