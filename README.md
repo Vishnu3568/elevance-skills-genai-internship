@@ -1,4 +1,4 @@
-# ElevanceSkills GenAI Internship — Multi-Domain AI Platform
+# Multi-Domain Generative AI & RAG Platform
 
 [![Python Version](https://img.shields.io/badge/python-3.11-blue.svg)](https://www.python.org/)
 [![Framework](https://img.shields.io/badge/framework-Streamlit%20%7C%20LangChain-orange.svg)](https://streamlit.io/)
@@ -6,42 +6,42 @@
 [![Vector Store](https://img.shields.io/badge/vector%20store-FAISS-red.svg)](https://github.com/facebookresearch/faiss)
 [![LLM](https://img.shields.io/badge/LLM-Google%20Gemini-4285F4.svg)](https://ai.google.dev/)
 
-A multi-domain, production-grade Generative AI and Retrieval-Augmented Generation (RAG) assistant platform developed during the **ElevanceSkills Generative AI Internship**. 
+An enterprise-grade, multi-domain Generative AI and Retrieval-Augmented Generation (RAG) platform. 
 
-The system evolves a single-domain customer support baseline into a decoupled, unified intelligence ecosystem spanning customer support with sentiment conditioning, dynamic knowledge base management, NIH MedQuAD clinical Q&A with strict safety boundaries, arXiv AI/ML scientific domain expertise, multimodal document/image/audio intelligence, and cross-cutting multilingual capabilities.
+The system evolves a single-domain customer support baseline into a decoupled, unified intelligence ecosystem spanning customer support with sentiment-conditioned response policies, live dynamic knowledge base management, NIH MedQuAD clinical Q&A with deterministic safety boundaries, arXiv AI/ML scientific domain expertise, multimodal document/image/audio intelligence, and cross-cutting multilingual capabilities.
 
 ---
 
 ## 📋 Table of Contents
 
-1. [Internship Context & Evolution](#-internship-context--evolution)
+1. [System Evolution & Engineering Progression](#-system-evolution--engineering-progression)
 2. [Architecture Overview](#-architecture-overview)
-3. [The Six Internship Tasks](#-the-six-internship-tasks)
-   - [Task 1: Sentiment Analysis](#task-1--sentiment-analysis)
-   - [Task 2: Medical Q&A Assistant (MedQuAD)](#task-2--medical-qa-assistant-medquad)
-   - [Task 3: Dynamic Knowledge Base](#task-3--dynamic-knowledge-base)
-   - [Task 4: Scientific Domain Expert (arXiv AI/ML)](#task-4--scientific-domain-expert-arxiv-aiml)
-   - [Task 5: Multimodal AI Assistant](#task-5--multimodal-ai-assistant)
-   - [Task 6: Multilingual Chatbot](#task-6--multilingual-chatbot)
-4. [Cross-Task Integration & Routing](#-cross-task-integration--routing)
+3. [Core System Modules](#-core-system-modules)
+   - [Module 1: Sentiment Analysis](#module-1--sentiment-analysis)
+   - [Module 2: Medical Clinical Q&A (NIH MedQuAD)](#module-2--medical-clinical-qa-nih-medquad)
+   - [Module 3: Dynamic Knowledge Base & Ingestion Pipeline](#module-3--dynamic-knowledge-base--ingestion-pipeline)
+   - [Module 4: Scientific Domain Expert (arXiv AI/ML)](#module-4--scientific-domain-expert-arxiv-aiml)
+   - [Module 5: Multimodal Intelligence (Vision, Audio, Docs)](#module-5--multimodal-intelligence-vision-audio-docs)
+   - [Module 6: Cross-Cutting Multilingual Engine](#module-6--cross-cutting-multilingual-engine)
+4. [Cross-Task Integration & Unified Routing](#-cross-task-integration--unified-routing)
 5. [User Interfaces & Port Allocation](#-user-interfaces--port-allocation)
 6. [Datasets & Protected Production Assets](#-datasets--protected-production-assets)
 7. [Installation & Setup](#-installation--setup)
 8. [Running the Applications](#-running-the-applications)
 9. [Testing & Quality Assurance](#-testing--quality-assurance)
 10. [Static Analysis & Code Quality](#-static-analysis--code-quality)
-11. [Known Limitations & Baseline Discrepancies](#-known-limitations--baseline-discrepancies)
+11. [Architectural Context & Design Notes](#-architectural-context--design-notes)
 12. [Repository Directory Structure](#-repository-directory-structure)
 
 ---
 
-## 🏛️ Internship Context & Evolution
+## 🏛️ System Evolution & Engineering Progression
 
-This repository traces the systematic engineering progression of the **ElevanceSkills Generative AI Internship**:
+This repository represents a complete architectural evolution from a monolithic prototype to a modular multi-domain platform:
 
-1. **Initial Baseline**: Began with a simple LangChain + Google PaLM customer service prototype for an e-learning organization (Nullclass FAQ dataset), as preserved in [`README.training.md`](file:///E:/Project%20Folder/NLP-chatbot-files/ElevanceSkills-GenAI-Internship/README.training.md).
-2. **Domain Decoupling & Modernization**: Upgraded the foundation to Google Gemini, implemented HuggingFace sentence embeddings (`all-MiniLM-L6-v2`), and structured services into modular components under `src/`.
-3. **Specialized Intelligence Tasks**: Sequentially implemented and validated sentiment-aware response conditioning, clinical RAG with NIH MedQuAD, live dynamic knowledge base sync, scientific paper analysis over 100 arXiv AI/ML publications, multi-format multimodal processing, and cross-lingual routing.
+1. **Initial Baseline**: Began with a simple LangChain + Google PaLM prototype for customer service FAQ retrieval, as preserved in [`README.training.md`](file:///E:/Project%20Folder/NLP-chatbot-files/ElevanceSkills-GenAI-Internship/README.training.md).
+2. **Domain Decoupling & Modernization**: Upgraded the core LLM foundation to Google Gemini, implemented HuggingFace sentence embeddings (`all-MiniLM-L6-v2`), and structured services into modular components under `src/`.
+3. **Specialized Intelligence Capabilities**: Sequentially built and validated sentiment-aware response conditioning, clinical RAG with NIH MedQuAD, live dynamic knowledge base sync, scientific paper analysis over 100 arXiv AI/ML publications, multi-format multimodal processing, and cross-lingual routing.
 4. **Unified Orchestration**: Constructed a non-invasive cross-task routing layer (`src/cross_task/`) providing an intelligent unified interface while preserving all standalone applications and protected vector assets.
 
 ---
@@ -90,9 +90,9 @@ graph TD
 
 ---
 
-## 🔬 The Six Internship Tasks
+## 🔬 Core System Modules
 
-### Task 1 — Sentiment Analysis
+### Module 1 — Sentiment Analysis
 - **Implementation**: [`src/sentiment_analyzer.py`](file:///E:/Project%20Folder/NLP-chatbot-files/ElevanceSkills-GenAI-Internship/src/sentiment_analyzer.py) and [`src/response_policy.py`](file:///E:/Project%20Folder/NLP-chatbot-files/ElevanceSkills-GenAI-Internship/src/response_policy.py).
 - **Core Technology**: CardiffNLP RoBERTa model (`cardiffnlp/twitter-roberta-base-sentiment-latest`) with robust rule/lexicon-based fallback when transformer models are offline.
 - **Architectural Role**: Operates as a behavioral response conditioning filter inside Customer Support rather than a distinct conversational domain.
@@ -101,7 +101,7 @@ graph TD
   - `POSITIVE`: Appends an encouraging appreciation closing note.
   - `NEUTRAL`: Delivers clean, unadorned FAQ responses.
 
-### Task 2 — Medical Q&A Assistant (MedQuAD)
+### Module 2 — Medical Clinical Q&A (NIH MedQuAD)
 - **Implementation**: [`src/medical_qa_service.py`](file:///E:/Project%20Folder/NLP-chatbot-files/ElevanceSkills-GenAI-Internship/src/medical_qa_service.py), [`src/medquad_retriever.py`](file:///E:/Project%20Folder/NLP-chatbot-files/ElevanceSkills-GenAI-Internship/src/medquad_retriever.py), [`src/medquad_query_analyzer.py`](file:///E:/Project%20Folder/NLP-chatbot-files/ElevanceSkills-GenAI-Internship/src/medquad_query_analyzer.py).
 - **Core Technology**: 12 NIH collections parsed from XML, indexed using HuggingFace sentence transformers into isolated vector store `faiss_index_medical/`.
 - **Safety States**: Every medical query is classified into one of five rigorous states:
@@ -112,14 +112,14 @@ graph TD
   5. `GENERATION_ERROR`: LLM failure despite valid evidence. Provides safe fallback while retaining retrieved reference data.
 - **Documentation**: Detailed guide in [`docs/MEDICAL_QA_GUIDE.md`](file:///E:/Project%20Folder/NLP-chatbot-files/ElevanceSkills-GenAI-Internship/docs/MEDICAL_QA_GUIDE.md).
 
-### Task 3 — Dynamic Knowledge Base
+### Module 3 — Dynamic Knowledge Base & Ingestion Pipeline
 - **Implementation**: [`src/knowledge_base/`](file:///E:/Project%20Folder/NLP-chatbot-files/ElevanceSkills-GenAI-Internship/src/knowledge_base/) (`kb_updater.py`, `scheduler.py`, `validator.py`, `atomic_writer.py`).
 - **Capabilities**:
   - Thread-safe, atomic updates to [`dataset/knowledge_base.csv`](file:///E:/Project%20Folder/NLP-chatbot-files/ElevanceSkills-GenAI-Internship/dataset/knowledge_base.csv) with schema validation and deduplication.
   - Background synchronization via `KBUpdateScheduler` for zero-downtime knowledge base reloads.
   - Dedicated admin sync console embedded in [`src/main.py`](file:///E:/Project%20Folder/NLP-chatbot-files/ElevanceSkills-GenAI-Internship/src/main.py) for manual or automated FAQ refreshes.
 
-### Task 4 — Scientific Domain Expert (arXiv AI/ML)
+### Module 4 — Scientific Domain Expert (arXiv AI/ML)
 - **Implementation**: [`src/scientific_kb/`](file:///E:/Project%20Folder/NLP-chatbot-files/ElevanceSkills-GenAI-Internship/src/scientific_kb/) (`service.py`, `retriever.py`, `synthesizer.py`, `query_classifier.py`, `concept_explainer.py`).
 - **Core Technology**: 100 AI/ML research papers from arXiv indexed into `faiss_index_scientific/`.
 - **Key Capabilities**:
@@ -128,7 +128,7 @@ graph TD
   - Multi-level concept explanations (Beginner, Intermediate, Expert/Mathematical).
   - Automatic query classification: `SEARCH`, `SUMMARIZATION`, `CONCEPT_EXPLANATION`, `COMPARISON`.
 
-### Task 5 — Multimodal AI Assistant
+### Module 5 — Multimodal Intelligence (Vision, Audio, Docs)
 - **Implementation**: [`src/multimodal/`](file:///E:/Project%20Folder/NLP-chatbot-files/ElevanceSkills-GenAI-Internship/src/multimodal/) (`service.py`, `file_processor.py`, `prompt_templates.py`).
 - **Supported Media**:
   - **Images**: PNG, JPG, JPEG, WEBP (analyzed via Gemini 1.5 Flash Vision).
@@ -136,7 +136,7 @@ graph TD
   - **Documents**: PDF, TXT, DOCX (text extracted, chunked, and contextualized).
 - **Safety & Limits**: Enforces 20MB file size limit, strict MIME type validation, temporary file cleanup, and defensive fallback error handling.
 
-### Task 6 — Multilingual Chatbot
+### Module 6 — Cross-Cutting Multilingual Engine
 - **Implementation**: [`src/multilingual/`](file:///E:/Project%20Folder/NLP-chatbot-files/ElevanceSkills-GenAI-Internship/src/multilingual/) (`service.py`, `language_detector.py`, `prompts.py`).
 - **Languages Supported**: English (`en`), Spanish (`es`), French (`fr`), German (`de`), Hindi (`hi`).
 - **Cross-Cutting Role**:
@@ -146,7 +146,7 @@ graph TD
 
 ---
 
-## 🔄 Cross-Task Integration & Routing
+## 🔄 Cross-Task Integration & Unified Routing
 
 The unified layer in [`src/cross_task/`](file:///E:/Project%20Folder/NLP-chatbot-files/ElevanceSkills-GenAI-Internship/src/cross_task/) brings all subsystems together:
 
@@ -165,12 +165,12 @@ The unified layer in [`src/cross_task/`](file:///E:/Project%20Folder/NLP-chatbot
 
 ## 🖥️ User Interfaces & Port Allocation
 
-Each application can run standalone or through the unified portal. In accordance with platform standards, each Streamlit UI runs on its designated port:
+Each application can run standalone or through the unified portal. Each Streamlit UI runs on its designated port:
 
 | Interface | Script Path | Default Port | Description |
 | :--- | :--- | :--- | :--- |
 | **Unified AI Assistant** | [`src/unified_main.py`](file:///E:/Project%20Folder/NLP-chatbot-files/ElevanceSkills-GenAI-Internship/src/unified_main.py) | **`8500`** | Central portal orchestrating all domains with auto/manual routing |
-| **Customer Support UI** | [`src/main.py`](file:///E:/Project%20Folder/NLP-chatbot-files/ElevanceSkills-GenAI-Internship/src/main.py) | **`8501`** | EdTech FAQ bot with Task 1 Sentiment + Task 3 Dynamic KB sync |
+| **Customer Support UI** | [`src/main.py`](file:///E:/Project%20Folder/NLP-chatbot-files/ElevanceSkills-GenAI-Internship/src/main.py) | **`8501`** | EdTech FAQ bot with Sentiment conditioning & Dynamic KB sync |
 | **Medical Q&A UI** | [`src/medical_main.py`](file:///E:/Project%20Folder/NLP-chatbot-files/ElevanceSkills-GenAI-Internship/src/medical_main.py) | **`8502`** | MedQuAD clinical Q&A with 5 safety states & NIH source badges |
 | **Multimodal UI** | [`src/multimodal_main.py`](file:///E:/Project%20Folder/NLP-chatbot-files/ElevanceSkills-GenAI-Internship/src/multimodal_main.py) | **`8503`** | Image, audio, and document analysis assistant |
 | **Multilingual UI** | [`src/multilingual_main.py`](file:///E:/Project%20Folder/NLP-chatbot-files/ElevanceSkills-GenAI-Internship/src/multilingual_main.py) | **`8504`** | Standalone 5-language conversational bot |
@@ -185,7 +185,7 @@ Each application can run standalone or through the unified portal. In accordance
 
 - **Customer Support Dataset**: [`dataset/knowledge_base.csv`](file:///E:/Project%20Folder/NLP-chatbot-files/ElevanceSkills-GenAI-Internship/dataset/knowledge_base.csv) (79 records).
 - **Scientific Research Dataset**: [`dataset/arxiv_ai_ml_subset.jsonl`](file:///E:/Project%20Folder/NLP-chatbot-files/ElevanceSkills-GenAI-Internship/dataset/arxiv_ai_ml_subset.jsonl) (100 research papers).
-- **Customer FAISS Index**: `faiss_index/` (Contains 76 embedded vectors matching baseline training state).
+- **Customer FAISS Index**: `faiss_index/` (Contains 76 embedded vectors matching baseline state).
 - **Medical FAISS Index**: `faiss_index_medical/` (Contains 5 curated MedQuAD vectors with metadata).
 - **Scientific FAISS Index**: `faiss_index_scientific/` (Contains 100 embedded arXiv research papers).
 
@@ -199,8 +199,8 @@ Each application can run standalone or through the unified portal. In accordance
 
 ### 1. Clone the Repository
 ```bash
-git clone https://github.com/aslin72/customer_service_chatbot_LLM.git
-cd customer_service_chatbot_LLM
+git clone https://github.com/Vishnu3568/elevance-skills-genai-internship.git
+cd elevance-skills-genai-internship
 ```
 
 ### 2. Set Up Virtual Environment
@@ -229,7 +229,7 @@ GOOGLE_API_KEY="your_google_gemini_api_key_here"
 
 ## 🚀 Running the Applications
 
-You can launch the Unified AI Assistant or any standalone application:
+Launch the Unified AI Assistant or any standalone application:
 
 ```bash
 # 1. Launch the Unified Multi-Domain Assistant (Recommended)
@@ -258,17 +258,14 @@ streamlit run src/scientific_main.py --server.port 8505
 The repository includes an extensive automated regression test suite covering all domains and cross-task integrations.
 
 ### Running the Full Test Suite
-To run the full regression test suite with TensorFlow disabled and environment paths properly configured:
+To run the full regression test suite with environment paths properly configured:
 
 ```bash
 # Windows PowerShell
-$env:PYTHONPATH="."; $env:TRANSFORMERS_NO_TF="1"; $env:USE_TF="0"; pytest
-
-# Windows CMD
-set PYTHONPATH=. && set TRANSFORMERS_NO_TF=1 && set USE_TF=0 && pytest
+$env:PYTHONPATH="E:\Project Folder\NLP-chatbot-files\ElevanceSkills-GenAI-Internship\chatbot\Lib\site-packages;."; $env:NLTK_DISABLE_IMPORT_SECURITY="1"; $env:TRANSFORMERS_NO_TF="1"; $env:USE_TF="0"; pytest
 
 # Linux / macOS
-PYTHONPATH=. TRANSFORMERS_NO_TF=1 USE_TF=0 pytest
+PYTHONPATH=chatbot/lib/python3.11/site-packages:. NLTK_DISABLE_IMPORT_SECURITY=1 TRANSFORMERS_NO_TF=1 USE_TF=0 pytest
 ```
 
 ### Running Specific Test Suites
@@ -334,39 +331,39 @@ ElevanceSkills-GenAI-Internship/
 │   │   ├── router.py                # Intent routing & keyword classification
 │   │   ├── orchestrator.py          # Central execution orchestrator
 │   │   └── session_manager.py       # Multi-domain session state management
-│   ├── knowledge_base/              # Dynamic KB management (Task 3)
+│   ├── knowledge_base/              # Dynamic KB management (Module 3)
 │   │   ├── atomic_writer.py         # Thread-safe atomic file writing
 │   │   ├── kb_updater.py            # Knowledge base sync service
 │   │   ├── scheduler.py             # Periodic background sync scheduler
 │   │   └── validator.py             # Schema & data integrity validation
-│   ├── multilingual/                # Multilingual capability (Task 6)
+│   ├── multilingual/                # Multilingual capability (Module 6)
 │   │   ├── language_detector.py     # Script, ngram & stopword detection
 │   │   ├── prompts.py               # Multilingual prompt templates
 │   │   └── service.py               # Cross-lingual translation & query handling
-│   ├── multimodal/                  # Multimodal processing (Task 5)
+│   ├── multimodal/                  # Multimodal processing (Module 5)
 │   │   ├── file_processor.py        # MIME detection, text extraction & audio handling
 │   │   ├── prompt_templates.py      # Vision & document prompts
 │   │   └── service.py               # Gemini multimodal orchestration
-│   ├── scientific_kb/               # Scientific domain expert (Task 4)
+│   ├── scientific_kb/               # Scientific domain expert (Module 4)
 │   │   ├── concept_explainer.py     # Multi-level concept explainer
 │   │   ├── query_classifier.py      # arXiv query intent classifier
 │   │   ├── retriever.py             # Scientific FAISS retriever
 │   │   ├── service.py               # End-to-end scientific service
 │   │   └── synthesizer.py           # Multi-paper synthesis & comparison
 │   ├── chatbot_service.py           # Customer Support RAG service
-│   ├── langchain_helper.py          # Legacy LangChain FAISS initialization
+│   ├── langchain_helper.py          # LangChain FAISS initialization
 │   ├── main.py                      # Customer Support UI (Port 8501)
 │   ├── medical_main.py              # Medical Q&A UI (Port 8502)
-│   ├── medical_qa_service.py        # MedQuAD clinical service & safety states (Task 2)
+│   ├── medical_qa_service.py        # MedQuAD clinical service & safety states (Module 2)
 │   ├── medquad_indexer.py           # MedQuAD XML parsing & indexing pipeline
 │   ├── medquad_parser.py            # MedQuAD XML schema parser
 │   ├── medquad_query_analyzer.py    # Clinical entity & question intent analyzer
 │   ├── medquad_retriever.py         # Medical vector retriever
 │   ├── multimodal_main.py           # Multimodal Assistant UI (Port 8503)
 │   ├── multilingual_main.py         # Multilingual Assistant UI (Port 8504)
-│   ├── response_policy.py           # Sentiment-conditioned response policies (Task 1)
+│   ├── response_policy.py           # Sentiment-conditioned response policies (Module 1)
 │   ├── scientific_main.py           # Scientific Research UI (Port 8505)
-│   ├── sentiment_analyzer.py        # CardiffNLP RoBERTa sentiment classifier (Task 1)
+│   ├── sentiment_analyzer.py        # CardiffNLP RoBERTa sentiment classifier (Module 1)
 │   └── unified_main.py              # Unified AI Assistant Portal (Port 8500)
 ├── tests/                           # Automated test suite (727 tests)
 ├── .env.example                     # Environment template
@@ -379,11 +376,10 @@ ElevanceSkills-GenAI-Internship/
 
 ---
 
-## 📜 License & Acknowledgments
+## 📜 Dataset & Model Attributions
 
-- **Internship Program**: ElevanceSkills Generative AI Internship
-- **Original Training Baseline**: Nullclass EdTech Q&A system
-- **Open-Source Datasets**:
-  - NIH MedQuAD (Medical Question Answering Dataset)
-  - arXiv.org e-Print Archive (Computer Science AI/ML)
-  - CardiffNLP Twitter RoBERTa Sentiment Model
+- **Medical Intelligence**: National Institutes of Health MedQuAD (Medical Question Answering Dataset).
+- **Scientific Intelligence**: arXiv.org e-Print Archive (Computer Science AI/ML subset).
+- **Sentiment Intelligence**: CardiffNLP Twitter RoBERTa Sentiment Model (`cardiffnlp/twitter-roberta-base-sentiment-latest`).
+- **Embedding Foundation**: HuggingFace `sentence-transformers/all-MiniLM-L6-v2` & `hkunlp/instructor-large`.
+- **Generative Intelligence**: Google Gemini API (`gemini-2.5-flash` / `gemini-1.5-flash`).

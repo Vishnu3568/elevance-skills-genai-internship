@@ -47,7 +47,7 @@ except ImportError:
 def configure_page() -> None:
     """Configure Streamlit layout and page metadata."""
     st.set_page_config(
-        page_title="ElevanceSkills Unified AI Platform",
+        page_title="Multi-Domain Unified AI Platform",
         page_icon="🌐",
         layout="wide",
         initial_sidebar_state="expanded",
@@ -93,14 +93,14 @@ def render_sidebar() -> Tuple[Optional[str], Optional[Any]]:
     elif domain_choice == "Multimodal Intelligence":
         domain_override = DomainType.MULTIMODAL.value
 
-    with st.sidebar.expander("ℹ️ Task Architecture Guide", expanded=False):
+    with st.sidebar.expander("ℹ️ System Architecture Guide", expanded=False):
         st.markdown(
-            "**ElevanceSkills GenAI Tasks**:\n"
-            "- **Tasks 1 & 3**: *Customer Support* integrates RoBERTa sentiment conditioning (Task 1) and dynamic FAQ knowledge base sync (Task 3).\n"
-            "- **Task 2**: *Medical Q&A* uses NIH MedQuAD clinical RAG with 5 safety states.\n"
-            "- **Task 4**: *Scientific Research* searches and synthesizes 100 arXiv AI/ML papers.\n"
-            "- **Task 5**: *Multimodal AI* analyzes images, audio, and document attachments.\n"
-            "- **Task 6**: *Multilingual* is a cross-cutting capability automatically detecting and processing EN, ES, FR, DE, and HI across all domains."
+            "**Core Intelligence Architecture**:\n"
+            "- **Customer Support**: Integrates RoBERTa sentiment-conditioned response policies and dynamic FAQ knowledge base synchronization.\n"
+            "- **Medical Q&A**: NIH MedQuAD clinical RAG with 5 deterministic safety boundary states.\n"
+            "- **Scientific Research**: Semantic search, concept explanation, and multi-paper synthesis over 100 arXiv AI/ML publications.\n"
+            "- **Multimodal AI**: Cross-modal reasoning over images, audio, and document attachments via Gemini 1.5 Flash.\n"
+            "- **Multilingual Intelligence**: Cross-cutting engine automatically detecting and processing English, Spanish, French, German, and Hindi across all domains."
         )
 
     st.sidebar.markdown("---")
@@ -188,7 +188,7 @@ def main() -> None:
     configure_page()
     initialize_session_state()
 
-    st.title("🌐 ElevanceSkills Unified AI Assistant")
+    st.title("🌐 Multi-Domain Unified AI Assistant")
     st.markdown(
         "*End-to-End Multimodal, Multilingual, Medical, Scientific, and Customer Support Architecture.*"
     )
