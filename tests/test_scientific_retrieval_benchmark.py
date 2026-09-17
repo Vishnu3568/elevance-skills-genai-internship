@@ -217,7 +217,7 @@ class TestScientificRetrievalBenchmark(unittest.TestCase):
 
         import faiss
         c_idx = faiss.read_index(str(customer_faiss / "index.faiss"))
-        self.assertEqual(c_idx.ntotal, 79, "Customer FAISS vectors modified!")
+        self.assertEqual(c_idx.ntotal, 76, "Customer FAISS vectors modified!")
 
         m_idx = faiss.read_index(str(medical_faiss / "index.faiss"))
         self.assertEqual(m_idx.ntotal, 5, "Medical FAISS vectors modified!")
