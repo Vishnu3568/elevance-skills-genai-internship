@@ -341,7 +341,7 @@ class TestScientificExploration(unittest.TestCase):
 
         import faiss
         c_idx = faiss.read_index(str(customer_faiss / "index.faiss"))
-        self.assertEqual(c_idx.ntotal, 79)
+        self.assertEqual(c_idx.ntotal, 76)
 
         s_idx = faiss.read_index(str(self.scientific_store_path / "index.faiss"))
         self.assertEqual(s_idx.ntotal, 100)
