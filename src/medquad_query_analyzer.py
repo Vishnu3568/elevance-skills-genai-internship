@@ -124,6 +124,18 @@ INTENT_PATTERNS: List[Tuple[str, Optional[str], List[str]]] = [
 ]
 
 
+# Deterministic baseline clinical synonyms for canonical conditions
+DEFAULT_CLINICAL_SYNONYMS: Dict[str, List[str]] = {
+    "influenza": ["flu", "the flu", "flu virus", "seasonal flu", "influenza virus"],
+    "hypertension": ["high blood pressure", "elevated blood pressure"],
+    "myocardial infarction": ["heart attack"],
+    "cerebrovascular accident": ["stroke", "brain attack"],
+    "diabetes mellitus": ["diabetes", "high blood sugar"],
+    "breast cancer": ["mammary cancer", "breast carcinoma"],
+    "measles": ["rubeola"],
+}
+
+
 class MedicalVocabulary:
     """Holds disease/topic vocabulary, synonyms, and CUI mappings."""
 
@@ -143,12 +155,24 @@ class MedicalVocabulary:
         norm_focus = self._normalize_term(clean_focus)
         self._term_lookup[norm_focus] = (clean_focus, cui_list, False)
 
-        if synonyms:
-            for syn in synonyms:
-                clean_syn = syn.strip()
-                if clean_syn:
-                    norm_syn = self._normalize_term(clean_syn)
-                    self._term_lookup[norm_syn] = (clean_focus, cui_list, True)
+        all_synonyms: Set[str] = set(synonyms or [])
+
+        # Integrate known standard clinical synonyms
+        if norm_focus in DEFAULT_CLINICAL_SYNONYMS:
+            for syn in DEFAULT_CLINICAL_SYNONYMS[norm_focus]:
+                all_synonyms.add(syn)
+        for canon, syn_list in DEFAULT_CLINICAL_SYNONYMS.items():
+            norm_syns = [self._normalize_term(s) for s in syn_list]
+            if norm_focus == canon or norm_focus in norm_syns:
+                all_synonyms.add(canon)
+                for s in syn_list:
+                    all_synonyms.add(s)
+
+        for syn in all_synonyms:
+            clean_syn = syn.strip()
+            if clean_syn and self._normalize_term(clean_syn) != norm_focus:
+                norm_syn = self._normalize_term(clean_syn)
+                self._term_lookup[norm_syn] = (clean_focus, cui_list, True)
 
         # Re-sort terms by descending word count and character length
         self._sorted_terms = sorted(

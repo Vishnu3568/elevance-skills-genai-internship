@@ -7,6 +7,7 @@ strict evidence-grounded prompt construction, and LLM answer generation.
 
 import os
 import sys
+import re
 from dataclasses import dataclass, field
 from typing import List, Dict, Optional, Any
 
@@ -21,7 +22,11 @@ try:
 except ImportError:
     from langchain.docstore.document import Document
 
-from medquad_query_analyzer import MedicalQueryAnalyzer, MedicalQueryAnalysis
+from medquad_query_analyzer import (
+    MedicalQueryAnalyzer,
+    MedicalQueryAnalysis,
+    DEFAULT_CLINICAL_SYNONYMS,
+)
 from medquad_retriever import (
     retrieve_medical_evidence_with_scores,
     RetrievalCandidate
@@ -281,6 +286,12 @@ class MedicalQAService:
                 return True
             if candidate.topic_boost > 0.0:
                 return True
+            # Check clinical synonyms across primary_topic and doc_focus
+            for canon, syns in DEFAULT_CLINICAL_SYNONYMS.items():
+                all_terms = [canon] + syns
+                if (p_topic in all_terms or any(p in all_terms for p in p_topic.split())) and \
+                   (doc_focus in all_terms or any(d in all_terms for d in doc_focus.split())):
+                    return True
             # Explicit primary topic mismatch (e.g. Query asked for Topic A, retrieved Topic B)
             return False
 
@@ -291,6 +302,22 @@ class MedicalQAService:
 
         if any(syn in clean_q or any(syn in ent or ent in syn for ent in query_entities) for syn in doc_synonyms):
             return True
+
+        # Check known clinical synonyms against query text and retrieved focus/synonyms
+        for canon, syns in DEFAULT_CLINICAL_SYNONYMS.items():
+            all_terms = [canon] + syns
+            if any(term == doc_focus or term in doc_focus for term in all_terms) or \
+               any(any(term in syn for term in all_terms) for syn in doc_synonyms):
+                if any(re.search(r'\b' + re.escape(term) + r'\b', clean_q) for term in all_terms):
+                    return True
+
+        # Check candidate document question overlap if semantic score or intent matches
+        doc_q = str(metadata.get("question", "")).strip().lower()
+        if doc_q:
+            q_words = [w for w in clean_q.split() if len(w) > 2 and w not in {"what", "are", "how", "why", "the", "for", "and", "can", "common", "does", "from"}]
+            doc_q_words = [w for w in doc_q.split() if len(w) > 2 and w not in {"what", "are", "how", "why", "the", "for", "and", "can", "common", "does", "from"}]
+            if any(w in doc_q_words for w in q_words) and (candidate.intent_boost > 0.0 or candidate.semantic_score >= 0.65):
+                return True
 
         # Support generic test document focuses in synthetic unit test environments
         if doc_focus in ("general", "overview") and query_entities:
@@ -334,9 +361,23 @@ class MedicalQAService:
         candidates: List[RetrievalCandidate]
     ) -> str:
         """Construct evidence-grounded prompt and invoke LLM for grounded answer generation."""
-        context_str = self._format_context(candidates)
-        prompt = self._build_grounding_prompt(query, context_str)
-        return self._invoke_llm(prompt)
+        if not candidates:
+            return INSUFFICIENT_EVIDENCE_MESSAGE
+
+        if self.llm is not None:
+            context_str = self._format_context(candidates)
+            prompt = self._build_grounding_prompt(query, context_str)
+            raw_answer = self._invoke_llm(prompt)
+            if raw_answer and raw_answer != DEFAULT_PLACEHOLDER_ANSWER:
+                return raw_answer
+
+        # Fallback to direct extraction from top candidate document if LLM unavailable
+        top_doc = candidates[0].document
+        extracted = self._extract_direct_answer_from_doc(top_doc)
+        if extracted:
+            return extracted
+
+        return DEFAULT_PLACEHOLDER_ANSWER
 
     def _format_context(self, candidates: List[RetrievalCandidate]) -> str:
         """Format retrieved candidate documents and metadata into a structured context string."""
@@ -392,6 +433,21 @@ class MedicalQAService:
             f"--- USER QUESTION ---\n{query}\n\n"
             "--- GROUNDED MEDICAL ANSWER ---"
         )
+
+    @staticmethod
+    def _extract_direct_answer_from_doc(doc: Document) -> Optional[str]:
+        """Extract authoritative curated answer from MedQuAD document content or metadata."""
+        metadata = getattr(doc, "metadata", {}) or {}
+        if metadata.get("answer"):
+            return str(metadata["answer"]).strip()
+
+        content = getattr(doc, "page_content", "") or ""
+        if "Answer:" in content:
+            parts = content.split("Answer:", 1)
+            ans = parts[1].strip()
+            if ans:
+                return ans
+        return None
 
     def _invoke_llm(self, prompt: str) -> str:
         """Invoke the injected LLM in a framework-compatible manner."""

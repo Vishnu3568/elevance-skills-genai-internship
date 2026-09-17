@@ -61,19 +61,37 @@ class CrossTaskOrchestrator:
         """Retrieve or lazily initialize Medical Q&A service."""
         if self._medical_qa_service is None:
             try:
-                from src.langchain_helper import get_instructor_embeddings
+                from src.medquad_indexer import load_medical_vector_db, DEFAULT_MEDICAL_INDEX_PATH
+                from src.medical_main import build_vocabulary_from_vector_db
+                from src.medquad_query_analyzer import MedicalQueryAnalyzer
                 from src.medical_qa_service import MedicalQAService
-                from langchain_community.vectorstores import FAISS
+                from src.langchain_helper import get_llm
             except ImportError:
-                from langchain_helper import get_instructor_embeddings  # type: ignore
+                from medquad_indexer import load_medical_vector_db, DEFAULT_MEDICAL_INDEX_PATH  # type: ignore
+                from medical_main import build_vocabulary_from_vector_db  # type: ignore
+                from medquad_query_analyzer import MedicalQueryAnalyzer  # type: ignore
                 from medical_qa_service import MedicalQAService  # type: ignore
-                from langchain.vectorstores import FAISS  # type: ignore
+                from langchain_helper import get_llm  # type: ignore
 
             try:
-                vector_db = FAISS.load_local("faiss_index_medical", get_instructor_embeddings())
+                vector_db = load_medical_vector_db(DEFAULT_MEDICAL_INDEX_PATH)
             except Exception:
                 vector_db = None
-            self._medical_qa_service = MedicalQAService(vector_db=vector_db)
+
+            vocab = build_vocabulary_from_vector_db(vector_db) if vector_db is not None else None
+            analyzer = MedicalQueryAnalyzer(vocabulary=vocab) if vocab is not None else MedicalQueryAnalyzer()
+
+            try:
+                llm = get_llm()
+            except Exception:
+                llm = None
+
+            self._medical_qa_service = MedicalQAService(
+                vector_db=vector_db,
+                analyzer=analyzer,
+                llm=llm,
+                relevance_threshold=0.50,
+            )
         return self._medical_qa_service
 
     def get_scientific_expert_service(self) -> Any:
