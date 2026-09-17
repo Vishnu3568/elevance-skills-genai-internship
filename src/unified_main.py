@@ -16,7 +16,8 @@ sys.path = [p for p in sys.path if p and os.path.abspath(p) != os.path.abspath("
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-import streamlit as st
+import streamlit as _st
+st: Any = _st
 
 try:
     from src.cross_task import (
@@ -214,14 +215,14 @@ def main() -> None:
         # Dispatch through CrossTaskService
         with st.chat_message("assistant"):
             with st.spinner("Analyzing request across specialist domains..."):
-                service: CrossTaskService = st.session_state.cross_task_service
-                request = UnifiedRequest(
+                service: Any = st.session_state.cross_task_service
+                request: Any = UnifiedRequest(
                     query=user_query,
                     image=image_artifact,
                     session_id=st.session_state.session_id,
                     domain_override=domain_override,
                 )
-                response: UnifiedResponse = service.process_request(request)
+                response: Any = service.process_request(request)
 
                 st.markdown(response.final_text_response)
                 render_response_metadata(response)
