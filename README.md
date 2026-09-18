@@ -1,3 +1,13 @@
+---
+title: Multi Domain Unified AI Platform
+emoji: 🌐
+colorFrom: blue
+colorTo: indigo
+sdk: docker
+app_port: 7860
+pinned: false
+---
+
 # Multi-Domain Generative AI & RAG Platform
 
 [![Python Version](https://img.shields.io/badge/python-3.11-blue.svg)](https://www.python.org/)
