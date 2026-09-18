@@ -78,7 +78,7 @@ class TestCrossTaskE2E(unittest.TestCase):
             mock_get_sci.return_value = mock_sci
 
             from src.scientific_kb.service import ScientificExpertResponse
-            mock_sci.process_query.return_value = ScientificExpertResponse(
+            mock_sci.ask.return_value = ScientificExpertResponse(
                 query="Explain Tree-LSTM with attention",
                 condensed_query="Tree-LSTM attention",
                 answer="Tree-LSTM utilizes hierarchical tree attention over syntactic parses.",

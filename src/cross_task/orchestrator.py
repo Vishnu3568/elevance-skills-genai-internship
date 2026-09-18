@@ -98,19 +98,21 @@ class CrossTaskOrchestrator:
         """Retrieve or lazily initialize Scientific Expert service."""
         if self._scientific_expert_service is None:
             try:
-                from src.langchain_helper import get_instructor_embeddings, get_llm
+                from src.langchain_helper import get_instructor_embeddings
                 from src.scientific_kb import (
                     ScientificExpertService,
                     ScientificGenerator,
                     ScientificRetriever,
+                    get_open_source_scientific_llm,
                     load_scientific_vector_store,
                 )
             except ImportError:
-                from langchain_helper import get_instructor_embeddings, get_llm  # type: ignore
+                from langchain_helper import get_instructor_embeddings  # type: ignore
                 from scientific_kb import (  # type: ignore
                     ScientificExpertService,
                     ScientificGenerator,
                     ScientificRetriever,
+                    get_open_source_scientific_llm,
                     load_scientific_vector_store,
                 )
 
@@ -118,7 +120,7 @@ class CrossTaskOrchestrator:
                 vector_store = load_scientific_vector_store("faiss_index_scientific", embeddings=get_instructor_embeddings())
                 retriever = ScientificRetriever(vector_store=vector_store, default_k=3)
                 try:
-                    generator = ScientificGenerator(llm=get_llm())
+                    generator = ScientificGenerator(llm=get_open_source_scientific_llm(), model_name="google/flan-t5-base")
                 except Exception:
                     generator = ScientificGenerator(llm=lambda p: "Evidence retrieved successfully.")
                 self._scientific_expert_service = ScientificExpertService(retriever=retriever, generator=generator)
@@ -208,7 +210,7 @@ class CrossTaskOrchestrator:
             # 4. Scientific Domain Branch
             if decision.domain == DomainType.SCIENTIFIC:
                 sci_service = self.get_scientific_expert_service()
-                sci_resp = sci_service.process_query(request.query)
+                sci_resp = sci_service.ask(request.query)
                 execution_time_ms = (time.perf_counter() - start_time) * 1000.0
 
                 unified_resp = adapt_scientific_response(

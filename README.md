@@ -2,13 +2,13 @@
 
 [![Python Version](https://img.shields.io/badge/python-3.11-blue.svg)](https://www.python.org/)
 [![Framework](https://img.shields.io/badge/framework-Streamlit%20%7C%20LangChain-orange.svg)](https://streamlit.io/)
-[![Embeddings](https://img.shields.io/badge/embeddings-HuggingFace%20MiniLM-green.svg)](https://huggingface.co/)
+[![Embeddings](https://img.shields.io/badge/embeddings-HuggingFace%20MiniLM%20%7C%20Instructor-green.svg)](https://huggingface.co/)
 [![Vector Store](https://img.shields.io/badge/vector%20store-FAISS-red.svg)](https://github.com/facebookresearch/faiss)
-[![LLM](https://img.shields.io/badge/LLM-Google%20Gemini-4285F4.svg)](https://ai.google.dev/)
+[![LLM](https://img.shields.io/badge/LLM-Google%20Gemini%20%7C%20FLAN--T5%20(Open--Source)-4285F4.svg)](https://huggingface.co/google/flan-t5-base)
 
 An enterprise-grade, multi-domain Generative AI and Retrieval-Augmented Generation (RAG) platform.
 
-The system evolves a single-domain customer support baseline into a decoupled, unified intelligence ecosystem spanning customer support with sentiment-conditioned response policies, live dynamic knowledge base management, NIH MedQuAD clinical Q&A with deterministic safety boundaries, arXiv AI/ML scientific domain expertise, multimodal document/image/audio intelligence, and cross-cutting multilingual capabilities.
+The system evolves a single-domain customer support baseline into a decoupled, unified intelligence ecosystem spanning customer support with sentiment-conditioned response policies, live dynamic knowledge base management, NIH MedQuAD clinical Q&A with deterministic safety boundaries, arXiv AI/ML scientific domain expertise with open-source LLM explanation generation, multimodal document/image/audio intelligence, and cross-cutting multilingual capabilities.
 
 ---
 
@@ -41,7 +41,7 @@ This repository represents a complete architectural evolution from a monolithic 
 
 1. **Initial Baseline**: Began with a simple LangChain + Google PaLM prototype for customer service FAQ retrieval, as preserved in [`README.training.md`](file:///E:/Project%20Folder/NLP-chatbot-files/ElevanceSkills-GenAI-Internship/README.training.md).
 2. **Domain Decoupling & Modernization**: Upgraded the core LLM foundation to Google Gemini, implemented HuggingFace sentence embeddings (`all-MiniLM-L6-v2`), and structured services into modular components under `src/`.
-3. **Specialized Intelligence Capabilities**: Sequentially built and validated sentiment-aware response conditioning, clinical RAG with NIH MedQuAD, live dynamic knowledge base sync, scientific paper analysis over 100 arXiv AI/ML publications, multi-format multimodal processing, and cross-lingual routing.
+3. **Specialized Intelligence Capabilities**: Sequentially built and validated sentiment-aware response conditioning, clinical RAG with NIH MedQuAD, live dynamic knowledge base sync, scientific paper analysis over 100 arXiv AI/ML publications with open-source LLM generation, multi-format multimodal processing, and cross-lingual routing.
 4. **Unified Orchestration**: Constructed a non-invasive cross-task routing layer (`src/cross_task/`) providing an intelligent unified interface while preserving all standalone applications and protected vector assets.
 
 ---
@@ -80,6 +80,7 @@ graph TD
 
     Sci --> SciPipeline[Search, Synthesizer & Concept Explainer]
     Sci --> FAISS_Sci[(faiss_index_scientific)]
+    SciPipeline --> FlanT5[Open-Source FLAN-T5-Base LLM]
 
     MM --> GeminiMM[Gemini 1.5 Flash Multi-Modal Vision/Audio]
 
@@ -124,13 +125,18 @@ graph TD
 
 ### Module 4 — Scientific Domain Expert (arXiv AI/ML)
 
-- **Implementation**: [`src/scientific_kb/`](file:///E:/Project%20Folder/NLP-chatbot-files/ElevanceSkills-GenAI-Internship/src/scientific_kb/) (`service.py`, `retriever.py`, `synthesizer.py`, `query_classifier.py`, `concept_explainer.py`).
+- **Implementation**: [`src/scientific_kb/`](file:///E:/Project%20Folder/NLP-chatbot-files/ElevanceSkills-GenAI-Internship/src/scientific_kb/) (`service.py`, `retriever.py`, `synthesizer.py`, `query_classifier.py`, `concept_explainer.py`, `generation.py`, `understanding.py`, `grounding.py`, `conversation.py`, `visualization.py`).
 - **Core Technology**: 100 AI/ML research papers from arXiv indexed into `faiss_index_scientific/`.
+- **Open-Source LLM Explanation Generation**: Uses the local open-source `google/flan-t5-base` model through [`OpenSourceScientificLLM`](file:///E:/Project%20Folder/NLP-chatbot-files/ElevanceSkills-GenAI-Internship/src/scientific_kb/generation.py) (`transformers.pipeline` for `text2text-generation` running on CPU via PyTorch). Preserves lazy loading: model weights (~990 MB) are automatically retrieved from Hugging Face Hub and cached locally upon first scientific inquiry and are **never committed** to Git.
 - **Key Capabilities**:
-  - Paper semantic search and metadata extraction (titles, authors, categories, publication dates).
-  - Multi-paper comparative analysis and thematic synthesis.
-  - Multi-level concept explanations (Beginner, Intermediate, Expert/Mathematical).
-  - Automatic query classification: `SEARCH`, `SUMMARIZATION`, `CONCEPT_EXPLANATION`, `COMPARISON`.
+  - Paper semantic search and metadata extraction (titles, authors, categories, publication dates, DOIs, URLs).
+  - Information extraction and structured paper understanding (methodology, key contributions, empirical results, limitations).
+  - Structured paper summarization with multi-section markdown reporting.
+  - Multi-paper comparative analysis and thematic matrix synthesis.
+  - Two-tiered concept explanations (rigorous technical & intuitive mental models) grounded in retrieved evidence.
+  - Conversational follow-up and multi-turn context query condensation.
+  - Interactive concept visualization (`visualization.py`).
+  - Dedicated Streamlit user interface ([`src/scientific_main.py`](file:///E:/Project%20Folder/NLP-chatbot-files/ElevanceSkills-GenAI-Internship/src/scientific_main.py) on Port `8505`).
 
 ### Module 5 — Multimodal Intelligence (Vision, Audio, Docs)
 
@@ -162,6 +168,7 @@ The unified layer in [`src/cross_task/`](file:///E:/Project%20Folder/NLP-chatbot
   - Supports explicit UI domain overrides or fully automatic intent routing.
 - **`UnifiedOrchestrator`** ([`orchestrator.py`](file:///E:/Project%20Folder/NLP-chatbot-files/ElevanceSkills-GenAI-Internship/src/cross_task/orchestrator.py)):
   - Coordinates domain dispatching, query normalization, and response aggregation.
+  - Invokes canonical domain interfaces (`ask()` for Scientific, `process_query()` for Customer Support and Medical, `process_request()` for Multimodal and Multilingual).
   - Tracks execution latency, confidence scores, and cross-cutting language detection.
 - **`SessionManager`** ([`session_manager.py`](file:///E:/Project%20Folder/NLP-chatbot-files/ElevanceSkills-GenAI-Internship/src/cross_task/session_manager.py)):
   - Maintains conversation history across domain switches without data contamination.
@@ -229,6 +236,9 @@ source chatbot/bin/activate
 pip install -r requirements.txt
 ```
 
+> [!NOTE]
+> **Reproducible Dependency Alignment**: `requirements.txt` is fully reproducible across Linux and Windows. It pins modern modular LangChain packages (`langchain==1.3.14`, `langchain-community==0.4.2`, `langchain-core==1.5.3`, `langchain-classic==1.0.8`, `langchain-google-genai==4.3.2`), points to the official PyTorch CPU repository (`--extra-index-url https://download.pytorch.org/whl/cpu`) with `torch==2.13.0+cpu` for lightweight cloud deployment without CUDA bloat, and provides runtime dependencies for Hugging Face Transformers (`transformers==4.30.2`, `sentencepiece==0.2.2`, `tokenizers==0.13.3`, `safetensors==0.8.0`), vector retrieval (`sentence-transformers==2.2.2`, `InstructorEmbedding==1.0.1`, `faiss-cpu==1.7.4`), `streamlit==1.32.0`, `pandas==2.3.3`, and `pillow==10.4.0`.
+
 ### 4. Configure Environment Variables
 
 Create a `.env` file in the project root (see [`.env.example`](file:///E:/Project%20Folder/NLP-chatbot-files/ElevanceSkills-GenAI-Internship/.env.example)):
@@ -236,6 +246,12 @@ Create a `.env` file in the project root (see [`.env.example`](file:///E:/Projec
 ```env
 GOOGLE_API_KEY="your_google_gemini_api_key_here"
 ```
+
+> [!IMPORTANT]
+> **API Key Scope & Offline Boot**:
+> - The Unified AI Assistant boots and initializes without requiring `GOOGLE_API_KEY`.
+> - Task 4 (Scientific Domain Expert) runs completely offline and locally using the open-source `google/flan-t5-base` pipeline and does not require `GOOGLE_API_KEY`.
+> - `GOOGLE_API_KEY` is required for Gemini-based workflows: Customer Support FAQ answers, Medical Q&A generation, Multimodal image/audio reasoning (Gemini 1.5 Flash), and Multilingual reasoning.
 
 ---
 
@@ -267,7 +283,7 @@ streamlit run src/scientific_main.py --server.port 8505
 
 ## 🧪 Testing & Quality Assurance
 
-The repository includes an extensive automated regression test suite covering all domains and cross-task integrations.
+The repository includes an extensive automated regression test suite covering all domains, cross-task integrations, and edge cases.
 
 ### Running the Full Test Suite
 
@@ -288,23 +304,26 @@ PYTHONPATH=chatbot/lib/python3.11/site-packages:. NLTK_DISABLE_IMPORT_SECURITY=1
 pytest -k cross_task
 
 # Run Medical Q&A test suites
-pytest tests/test_medical_qa_service.py tests/test_medical_ui.py
+pytest -k "medical or medquad"
 
 # Run Multilingual test suites
-pytest tests/test_multilingual_evaluation.py tests/test_multilingual_language_identification.py
+pytest -k multilingual
 
 # Run Multimodal test suites
-pytest tests/test_multimodal_pipeline.py tests/test_multimodal_vision.py
+pytest -k multimodal
 
 # Run Scientific Research test suites
-pytest tests/test_scientific_service.py tests/test_scientific_exploration.py
+pytest -k scientific
+
+# Run Customer Support & Dynamic KB test suites
+pytest -k "customer or knowledge or dynamic or chatbot"
 ```
 
 ### Test Baseline Status
 
-- **Total Discovered Tests**: 727 items across 48 test modules.
-- **Passing**: **727/727 passing (100% pass rate)**.
-- **Verification**: All 727 tests pass cleanly with zero failures and zero errors under the verified execution environment.
+- **Total Discovered Tests**: **735 passed, 0 failed** across **65 test modules**.
+- **Pass Rate**: **100% pass rate**.
+- **Verification**: All 735 tests pass cleanly with zero failures and zero errors under the verified execution environment.
 
 ---
 
@@ -363,10 +382,15 @@ ElevanceSkills-GenAI-Internship/
 │   │   └── service.py               # Gemini multimodal orchestration
 │   ├── scientific_kb/               # Scientific domain expert (Module 4)
 │   │   ├── concept_explainer.py     # Multi-level concept explainer
+│   │   ├── conversation.py          # Conversational memory & query condensation
+│   │   ├── generation.py            # Open-source FLAN-T5 LLM adapter & grounded prompts
+│   │   ├── grounding.py             # Citation extraction & evidence validation
 │   │   ├── query_classifier.py      # arXiv query intent classifier
 │   │   ├── retriever.py             # Scientific FAISS retriever
-│   │   ├── service.py               # End-to-end scientific service
-│   │   └── synthesizer.py           # Multi-paper synthesis & comparison
+│   │   ├── service.py               # End-to-end scientific service (ask API)
+│   │   ├── synthesizer.py           # Multi-paper synthesis & comparison
+│   │   ├── understanding.py         # Structured paper extraction & analysis
+│   │   └── visualization.py         # Concept hierarchy & relation visualization
 │   ├── chatbot_service.py           # Customer Support RAG service
 │   ├── langchain_helper.py          # LangChain FAISS initialization
 │   ├── main.py                      # Customer Support UI (Port 8501)
@@ -382,13 +406,13 @@ ElevanceSkills-GenAI-Internship/
 │   ├── scientific_main.py           # Scientific Research UI (Port 8505)
 │   ├── sentiment_analyzer.py        # CardiffNLP RoBERTa sentiment classifier (Module 1)
 │   └── unified_main.py              # Unified AI Assistant Portal (Port 8500)
-├── tests/                           # Automated test suite (727 tests)
+├── tests/                           # Automated test suite (735 tests across 65 modules)
 ├── .env.example                     # Environment template
 ├── pyproject.toml                   # Pytest & Pyright configuration
 ├── pyrightconfig.json               # Pyright type checker settings
 ├── README.md                        # Production system documentation
 ├── README.training.md               # Original baseline training documentation
-└── requirements.txt                 # Pinned dependencies
+└── requirements.txt                 # Pinned reproducible dependencies
 ```
 
 ---
@@ -396,7 +420,9 @@ ElevanceSkills-GenAI-Internship/
 ## 📜 Dataset & Model Attributions
 
 - **Medical Intelligence**: National Institutes of Health MedQuAD (Medical Question Answering Dataset).
-- **Scientific Intelligence**: arXiv.org e-Print Archive (Computer Science AI/ML subset).
+- **Scientific Intelligence**: arXiv.org e-Print Archive (Computer Science AI/ML subset, 100 publications).
 - **Sentiment Intelligence**: CardiffNLP Twitter RoBERTa Sentiment Model (`cardiffnlp/twitter-roberta-base-sentiment-latest`).
 - **Embedding Foundation**: HuggingFace `sentence-transformers/all-MiniLM-L6-v2` & `hkunlp/instructor-large`.
-- **Generative Intelligence**: Google Gemini API (`gemini-2.5-flash` / `gemini-1.5-flash`).
+- **Generative Intelligence**:
+  - **Scientific Domain Expert (Task 4)**: Open-Source Hugging Face `google/flan-t5-base` via PyTorch CPU pipeline.
+  - **Specialist & Multimodal Domains**: Google Gemini API (`gemini-2.5-flash` / `gemini-1.5-flash`) for Customer Support, Medical Q&A, and Multimodal reasoning.

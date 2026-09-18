@@ -39,9 +39,11 @@ try:
     from src.scientific_kb.generation import (  # type: ignore
         INSUFFICIENT_EVIDENCE_PHRASE,
         SCIENTIFIC_QA_PROMPT_TEMPLATE,
+        OpenSourceScientificLLM,
         ScientificAnswer,
         ScientificGenerator,
         build_scientific_prompt,
+        get_open_source_scientific_llm,
     )
     # pyrefly: ignore [missing-import]
     from src.scientific_kb.grounding import (  # type: ignore
@@ -132,9 +134,11 @@ except ImportError:
     from scientific_kb.generation import (  # type: ignore
         INSUFFICIENT_EVIDENCE_PHRASE,
         SCIENTIFIC_QA_PROMPT_TEMPLATE,
+        OpenSourceScientificLLM,
         ScientificAnswer,
         ScientificGenerator,
         build_scientific_prompt,
+        get_open_source_scientific_llm,
     )
     # pyrefly: ignore [missing-import]
     from scientific_kb.grounding import (  # type: ignore
@@ -209,6 +213,8 @@ __all__ = [
     "format_retrieval_context",
     "ScientificAnswer",
     "ScientificGenerator",
+    "OpenSourceScientificLLM",
+    "get_open_source_scientific_llm",
     "build_scientific_prompt",
     "SCIENTIFIC_QA_PROMPT_TEMPLATE",
     "INSUFFICIENT_EVIDENCE_PHRASE",

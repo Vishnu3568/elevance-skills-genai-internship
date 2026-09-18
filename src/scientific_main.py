@@ -21,7 +21,7 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 try:
     # pyrefly: ignore [missing-import]
-    from src.langchain_helper import get_instructor_embeddings, get_llm  # type: ignore
+    from src.langchain_helper import get_instructor_embeddings  # type: ignore
     # pyrefly: ignore [missing-import]
     from src.scientific_kb import (  # type: ignore
         DEFAULT_SCIENTIFIC_VECTOR_STORE_PATH,
@@ -32,6 +32,7 @@ try:
         ConceptExtractionResult,
         CorpusSummary,
         GroundingValidationResult,
+        OpenSourceScientificLLM,
         RelatedPaperMatch,
         ScientificAnswer,
         ScientificConversationSession,
@@ -44,11 +45,12 @@ try:
         ScientificRetriever,
         StructuredPaperAnalysis,
         TimelineEntry,
+        get_open_source_scientific_llm,
         load_scientific_vector_store,
     )
 except ImportError:
     # pyrefly: ignore [missing-import]
-    from langchain_helper import get_instructor_embeddings, get_llm  # type: ignore
+    from langchain_helper import get_instructor_embeddings  # type: ignore
     # pyrefly: ignore [missing-import]
     from scientific_kb import (  # type: ignore
         DEFAULT_SCIENTIFIC_VECTOR_STORE_PATH,
@@ -71,6 +73,7 @@ except ImportError:
         ScientificRetriever,
         StructuredPaperAnalysis,
         TimelineEntry,
+        get_open_source_scientific_llm,
         load_scientific_vector_store,
     )
 
@@ -279,17 +282,17 @@ def initialize_scientific_service(
         vector_store = load_scientific_vector_store(str(target_path), embeddings=embeddings)
         retriever = ScientificRetriever(vector_store=vector_store, default_k=3)
 
-        # Attempt to load LLM
+        # Attempt to load open-source LLM for scientific explanations
         try:
-            llm = get_llm()
-            generator = ScientificGenerator(llm=llm)
+            llm = get_open_source_scientific_llm()
+            generator = ScientificGenerator(llm=llm, model_name="google/flan-t5-base")
         except Exception as llm_err:
-            # Fallback callable LLM if API key is unconfigured
+            # Fallback callable LLM if open-source model fails to load locally
             def _fallback_generator(prompt: str) -> str:
                 return (
-                    "**Scientific Assistant (Local Mode)**:\n\n"
+                    "**Scientific Assistant (Local Fallback Mode)**:\n\n"
                     "Evidence was successfully retrieved from the scientific corpus. "
-                    "To generate full open-source LLM explanations, please configure `GOOGLE_API_KEY` in `.env`."
+                    f"Open-source model loading error: {llm_err}"
                 )
 
             generator = ScientificGenerator(llm=_fallback_generator)
@@ -380,7 +383,8 @@ def render_sidebar(service: Optional[ScientificExpertService]) -> Dict[str, Any]
         st.divider()
         st.markdown("### 📊 Corpus Overview")
         if service and hasattr(service.retriever.vector_store, "docstore"):
-            total_docs = len(service.retriever.vector_store.docstore._dict)
+            docstore = getattr(service.retriever.vector_store, "docstore", None)
+            total_docs = len(getattr(docstore, "_dict", {}))
             st.metric(label="Indexed Papers", value=total_docs)
             st.caption("Domains: `cs.CL`, `cs.AI`, `cs.LG`, `cs.CV`, `stat.ML`")
         else:
@@ -713,7 +717,7 @@ def main():
 
                         # Papers containing this concept
                         st.markdown(f"#### 📄 Papers Exhibiting '{selected_c}' ({len(c_stat.paper_ids)})")
-                        matching_papers = exploration_engine.get_papers_for_concept(selected_c)
+                        matching_papers = exploration_engine.get_papers_for_concept(str(selected_c or ""))
                         for idx, p in enumerate(matching_papers, 1):
                             pid = p.get("arxiv_id") or p.get("id") or ""
                             p_title = p.get("title", pid)
@@ -793,7 +797,7 @@ def main():
                         st.markdown(f"**Published**: {target_p.get('published_date', '')[:10]}")
 
                     # Extracted Concepts for this paper
-                    p_concepts = exploration_engine.get_concepts_for_paper(selected_pid)
+                    p_concepts = exploration_engine.get_concepts_for_paper(str(selected_pid or ""))
                     if p_concepts:
                         st.markdown(f"**Extracted Concepts**: {', '.join([f'`{c}`' for c in p_concepts])}")
 

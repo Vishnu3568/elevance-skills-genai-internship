@@ -4,6 +4,7 @@ Provides grounded prompt engineering, open-source LLM abstraction, source
 attribution, and structured answer synthesis over retrieved arXiv papers.
 """
 
+import os
 from dataclasses import dataclass, field
 from typing import Any, Callable, Dict, List, Optional, Union
 
@@ -42,6 +43,99 @@ GROUNDED SCIENTIFIC EXPLANATION:"""
 
 INSUFFICIENT_EVIDENCE_PHRASE = "The provided scientific papers do not contain sufficient evidence to answer this question."
 
+_UNSET = object()
+
+
+class OpenSourceScientificLLM:
+    """Open-source Hugging Face Seq2Seq LLM adapter for scientific explanation generation.
+
+    Encapsulates the local open-source model (default: google/flan-t5-base) using Hugging Face
+    transformers pipeline with deterministic parameters, token control, and lazy loading.
+    """
+
+    def __init__(
+        self,
+        model_name: str = "google/flan-t5-base",
+        temperature: float = 0.1,
+        max_length: int = 512,
+    ):
+        """Initialize open-source scientific LLM adapter.
+
+        Args:
+            model_name (str): Hugging Face model identifier (default: google/flan-t5-base).
+            temperature (float): Generation temperature for deterministic output.
+            max_length (int): Maximum sequence generation length.
+        """
+        self.model_name = model_name
+        self.temperature = temperature
+        self.max_length = max_length
+        self._pipeline: Optional[Any] = None
+
+    def _get_pipeline(self) -> Any:
+        """Lazily initialize and return the Hugging Face text2text pipeline."""
+        if self._pipeline is None:
+            os.environ["TRANSFORMERS_NO_TF"] = "1"
+            os.environ["USE_TF"] = "0"
+            from transformers import pipeline
+
+            self._pipeline = pipeline(
+                "text2text-generation",
+                model=self.model_name,
+                max_length=self.max_length,
+                do_sample=(self.temperature > 0.0),
+            )
+        return self._pipeline
+
+    def invoke(self, prompt: str) -> str:
+        """Invoke open-source model pipeline on input prompt.
+
+        Args:
+            prompt (str): Prompt text to generate explanation from.
+
+        Returns:
+            str: Generated explanation text.
+        """
+        pipe = self._get_pipeline()
+        outputs = pipe(prompt)
+        if isinstance(outputs, list) and outputs and isinstance(outputs[0], dict) and "generated_text" in outputs[0]:
+            return str(outputs[0]["generated_text"]).strip()
+        return str(outputs).strip()
+
+    def __call__(self, prompt: str) -> str:
+        """Callable protocol support."""
+        return self.invoke(prompt)
+
+    def predict(self, prompt: str) -> str:
+        """Predict protocol support."""
+        return self.invoke(prompt)
+
+    @property
+    def is_open_source(self) -> bool:
+        """Identity flag confirming this is an open-source model."""
+        return True
+
+
+def get_open_source_scientific_llm(
+    model_name: str = "google/flan-t5-base",
+    temperature: float = 0.1,
+    max_length: int = 512,
+) -> OpenSourceScientificLLM:
+    """Factory creating a lazily loaded OpenSourceScientificLLM instance.
+
+    Args:
+        model_name (str): Open-source model name (default: google/flan-t5-base).
+        temperature (float): Sampling temperature.
+        max_length (int): Maximum generation length.
+
+    Returns:
+        OpenSourceScientificLLM: Configured open-source LLM instance.
+    """
+    return OpenSourceScientificLLM(
+        model_name=model_name,
+        temperature=temperature,
+        max_length=max_length,
+    )
+
 
 @dataclass
 class ScientificAnswer:
@@ -75,7 +169,7 @@ class ScientificGenerator:
 
     def __init__(
         self,
-        llm: Optional[Any] = None,
+        llm: Any = _UNSET,
         model_name: str = "google/flan-t5-base",
         temperature: float = 0.1,
     ):
@@ -83,12 +177,30 @@ class ScientificGenerator:
 
         Args:
             llm (Optional[Any]): Configurable LLM instance (callable or LangChain model).
+                If unset, defaults to local open-source LLM (google/flan-t5-base).
             model_name (str): Open-source model identifier.
             temperature (float): Generation temperature for deterministic output.
         """
-        self.llm = llm
         self.model_name = model_name
         self.temperature = temperature
+
+        if llm is _UNSET:
+            self.llm = get_open_source_scientific_llm(
+                model_name=model_name,
+                temperature=temperature,
+            )
+        else:
+            self.llm = llm
+
+    @property
+    def is_open_source(self) -> bool:
+        """Check if active LLM backend is an open-source model."""
+        if isinstance(self.llm, OpenSourceScientificLLM):
+            return True
+        if self.llm is not None and getattr(self.llm, "is_open_source", False):
+            return True
+        llm_type = type(self.llm).__name__.lower()
+        return "gemini" not in llm_type and "google" not in llm_type
 
     def _invoke_llm(self, prompt: str) -> str:
         """Invoke the configured LLM handling various invocation protocols."""
@@ -97,18 +209,27 @@ class ScientificGenerator:
                 "No LLM backend configured. Please supply a valid LLM instance to ScientificGenerator."
             )
 
-        # 1. LangChain invoke / predict / generate / __call__
+        # 1. LangChain invoke / OpenSourceScientificLLM invoke
         if hasattr(self.llm, "invoke"):
             res = self.llm.invoke(prompt)
-            if hasattr(res, "content"):
-                return str(res.content)
-            return str(res)
+            content = getattr(res, "content", None)
+            if content is not None:
+                return str(content).strip()
+            if isinstance(res, list) and res and isinstance(res[0], dict) and "generated_text" in res[0]:
+                return str(res[0]["generated_text"]).strip()
+            return str(res).strip()
 
+        # 2. Callable pipeline or plain function
         if callable(self.llm):
-            return str(self.llm(prompt))
+            res = self.llm(prompt)
+            if isinstance(res, list) and res and isinstance(res[0], dict) and "generated_text" in res[0]:
+                return str(res[0]["generated_text"]).strip()
+            return str(res).strip()
 
+        # 3. Predict protocol
         if hasattr(self.llm, "predict"):
-            return str(self.llm.predict(prompt))
+            res = self.llm.predict(prompt)
+            return str(res).strip()
 
         raise TypeError(f"Unsupported LLM object type: {type(self.llm).__name__}")
 

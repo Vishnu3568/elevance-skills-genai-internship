@@ -16,6 +16,8 @@ try:
         ScientificRetrievalResult,
         build_scientific_prompt,
         INSUFFICIENT_EVIDENCE_PHRASE,
+        OpenSourceScientificLLM,
+        get_open_source_scientific_llm,
     )
 except ImportError:
     # pyrefly: ignore [missing-import]
@@ -25,14 +27,16 @@ except ImportError:
         ScientificRetrievalResult,
         build_scientific_prompt,
         INSUFFICIENT_EVIDENCE_PHRASE,
+        OpenSourceScientificLLM,
+        get_open_source_scientific_llm,
     )
 
 try:
     from langchain_core.documents import Document
     from langchain_core.messages import AIMessage
 except ImportError:
-    from langchain.docstore.document import Document
-    from langchain.schema import AIMessage
+    from langchain.docstore.document import Document  # type: ignore
+    from langchain.schema import AIMessage  # type: ignore
 
 
 class FakeScientificLLM:
@@ -208,6 +212,64 @@ class TestScientificGeneration(unittest.TestCase):
             self.assertEqual(customer_faiss.stat().st_mtime, cust_mtime)
         if medical_faiss.exists():
             self.assertEqual(medical_faiss.stat().st_mtime, med_mtime)
+
+    def test_open_source_scientific_llm_adapter_attributes_and_lazy_loading(self):
+        """Verify that OpenSourceScientificLLM has correct open-source model configuration and lazy loads."""
+        llm = OpenSourceScientificLLM(model_name="google/flan-t5-base", temperature=0.1, max_length=512)
+        self.assertEqual(llm.model_name, "google/flan-t5-base")
+        self.assertEqual(llm.temperature, 0.1)
+        self.assertEqual(llm.max_length, 512)
+        self.assertTrue(llm.is_open_source)
+        # Verify lazy initialization: pipeline is not loaded on construction
+        self.assertIsNone(llm._pipeline)
+
+    def test_get_open_source_scientific_llm_factory(self):
+        """Verify factory function creates OpenSourceScientificLLM targeting google/flan-t5-base."""
+        llm = get_open_source_scientific_llm()
+        self.assertIsInstance(llm, OpenSourceScientificLLM)
+        self.assertEqual(llm.model_name, "google/flan-t5-base")
+        self.assertTrue(llm.is_open_source)
+
+    def test_scientific_generator_default_initialization_is_open_source(self):
+        """Verify ScientificGenerator() defaults to the open-source model google/flan-t5-base."""
+        generator = ScientificGenerator()
+        self.assertIsInstance(generator.llm, OpenSourceScientificLLM)
+        self.assertEqual(generator.model_name, "google/flan-t5-base")
+        self.assertTrue(generator.is_open_source)
+
+    def test_scientific_generator_pipeline_dict_unpacking(self):
+        """Verify ScientificGenerator unpacks Hugging Face pipeline list-of-dicts cleanly."""
+        mock_pipeline = lambda prompt: [{"generated_text": "Attention mechanism replaces recurrence."}]
+        generator = ScientificGenerator(llm=mock_pipeline)
+
+        ans = generator.generate_answer("How does attention work?", [self.sample_result1])
+        self.assertEqual(ans.answer, "Attention mechanism replaces recurrence.")
+        self.assertTrue(ans.grounded)
+
+    def test_open_source_scientific_llm_mock_invocation_protocols(self):
+        """Verify invoke, __call__, and predict protocols on OpenSourceScientificLLM."""
+        llm = OpenSourceScientificLLM()
+        mock_pipe = MagicMock(return_value=[{"generated_text": "Transformer explanation"}])
+        llm._pipeline = mock_pipe
+
+        self.assertEqual(llm.invoke("test prompt"), "Transformer explanation")
+        self.assertEqual(llm("test prompt"), "Transformer explanation")
+        self.assertEqual(llm.predict("test prompt"), "Transformer explanation")
+        self.assertEqual(mock_pipe.call_count, 3)
+
+    def test_real_open_source_flan_t5_generation_runtime(self):
+        """Verify that google/flan-t5-base open-source model generates real scientific explanation locally."""
+        generator = ScientificGenerator()
+        self.assertTrue(generator.is_open_source)
+
+        res = generator.generate_answer(
+            query="What mechanism does Transformer use?",
+            retrieval_results=[self.sample_result1],
+        )
+        self.assertIsInstance(res, ScientificAnswer)
+        self.assertTrue(len(res.answer) > 0)
+        self.assertTrue(res.grounded)
+        self.assertNotIn("No LLM backend configured", res.answer)
 
 
 if __name__ == "__main__":

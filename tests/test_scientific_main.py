@@ -17,6 +17,7 @@ try:
     from src.scientific_kb import (  # type: ignore
         DEFAULT_SCIENTIFIC_VECTOR_STORE_PATH,
         CorpusSummary,
+        OpenSourceScientificLLM,
         RelatedPaperMatch,
         ScientificExpertResponse,
         ScientificExpertService,
@@ -32,6 +33,7 @@ except ImportError:
     from scientific_kb import (  # type: ignore
         DEFAULT_SCIENTIFIC_VECTOR_STORE_PATH,
         CorpusSummary,
+        OpenSourceScientificLLM,
         RelatedPaperMatch,
         ScientificExpertResponse,
         ScientificExpertService,
@@ -71,11 +73,30 @@ class TestScientificMain(unittest.TestCase):
         service, err = sm.initialize_scientific_service(str(self.scientific_store))
         self.assertIsNone(err)
         self.assertIsNotNone(service)
+        assert service is not None
         self.assertIsInstance(service, ScientificExpertService)
 
         # Check that retriever holds the 100-paper vector store
         docstore = service.retriever.vector_store.docstore._dict
         self.assertEqual(len(docstore), 100)
+
+        # Verify open-source model binding
+        self.assertEqual(service.generator.model_name, "google/flan-t5-base")
+        self.assertTrue(service.generator.is_open_source)
+        self.assertIsInstance(service.generator.llm, OpenSourceScientificLLM)
+
+    def test_scientific_service_runtime_uses_open_source_model(self):
+        """Verify that the scientific application runtime service is bound to open-source model."""
+        if not self.scientific_store.exists():
+            self.skipTest("faiss_index_scientific/ not yet built")
+
+        service, err = sm.initialize_scientific_service(str(self.scientific_store))
+        self.assertIsNone(err)
+        self.assertIsNotNone(service)
+        assert service is not None
+        self.assertIsInstance(service.generator.llm, OpenSourceScientificLLM)
+        self.assertEqual(service.generator.llm.model_name, "google/flan-t5-base")
+        self.assertTrue(service.generator.is_open_source)
 
     def test_initialize_scientific_service_missing_index(self):
         """Verify graceful error handling when vector store path does not exist."""

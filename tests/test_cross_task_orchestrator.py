@@ -99,7 +99,7 @@ class TestCrossTaskOrchestrator(unittest.TestCase):
             reasoning="Research signals detected",
             is_cross_lingual=False,
         )
-        self.mock_sci_service.process_query.return_value = ScientificExpertResponse(
+        self.mock_sci_service.ask.return_value = ScientificExpertResponse(
             query="Explain Tree-LSTM",
             condensed_query="Tree-LSTM",
             answer="Tree-LSTM generalizes sequence LSTMs to tree-structured topologies.",
@@ -111,7 +111,7 @@ class TestCrossTaskOrchestrator(unittest.TestCase):
         resp = self.orchestrator.dispatch(req)
 
         self.assertEqual(resp.domain, DomainType.SCIENTIFIC.value)
-        self.mock_sci_service.process_query.assert_called_once_with("Explain Tree-LSTM")
+        self.mock_sci_service.ask.assert_called_once_with("Explain Tree-LSTM")
 
     def test_dispatch_multimodal(self):
         """Verify routing and dispatch to Multimodal Assistant service."""
@@ -194,6 +194,14 @@ class TestCrossTaskOrchestrator(unittest.TestCase):
         self.assertEqual(resp.confidence_score, 0.0)
         self.assertEqual(resp.confidence_tier, "INSUFFICIENT")
         self.assertIn("FAISS memory fault", resp.final_text_response)
+
+    def test_get_scientific_expert_service_binds_open_source_model(self):
+        """Verify CrossTaskOrchestrator binds the open-source LLM for Scientific service."""
+        orch = CrossTaskOrchestrator(router=self.mock_router)
+        sci_service = orch.get_scientific_expert_service()
+        if sci_service is not None:
+            self.assertEqual(sci_service.generator.model_name, "google/flan-t5-base")
+            self.assertTrue(sci_service.generator.is_open_source)
 
 
 if __name__ == "__main__":
