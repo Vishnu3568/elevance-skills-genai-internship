@@ -121,7 +121,13 @@ def render_sidebar() -> Tuple[Optional[str], Optional[Any]]:
                 file_name=uploaded_file.name,
             )
             import io
-            st.sidebar.image(io.BytesIO(image_bytes), caption=f"Loaded: {uploaded_file.name}", use_column_width=True)
+            try:
+                st.sidebar.image(io.BytesIO(image_bytes), caption=f"Loaded: {uploaded_file.name}", use_container_width=True)
+            except TypeError:
+                try:
+                    st.sidebar.image(io.BytesIO(image_bytes), caption=f"Loaded: {uploaded_file.name}", use_column_width=True)
+                except TypeError:
+                    st.sidebar.image(io.BytesIO(image_bytes), caption=f"Loaded: {uploaded_file.name}")
             st.sidebar.success(f"Image ingested: {image_artifact.width}x{image_artifact.height}px")
         except Exception as e:
             st.sidebar.error(f"Image ingestion error: {str(e)}")
