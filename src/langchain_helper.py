@@ -22,11 +22,24 @@ if not os.path.exists(DATASET_PATH):
 
 vectordb_file_path = os.path.join(BASE_DIR, "faiss_index")
 
+_instructor_embeddings_singleton = None
+
+
 def get_instructor_embeddings():
-    try:
-        return HuggingFaceInstructEmbeddings(model_name="hkunlp/instructor-large")
-    except Exception as e:
-        return HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
+    global _instructor_embeddings_singleton
+    if _instructor_embeddings_singleton is None:
+        try:
+            _instructor_embeddings_singleton = HuggingFaceInstructEmbeddings(
+                model_name="hkunlp/instructor-large",
+                model_kwargs={"device": "cpu"},
+                encode_kwargs={"normalize_embeddings": True},
+            )
+        except Exception as e:
+            _instructor_embeddings_singleton = HuggingFaceEmbeddings(
+                model_name="sentence-transformers/all-MiniLM-L6-v2",
+                model_kwargs={"device": "cpu"},
+            )
+    return _instructor_embeddings_singleton
 
 # Lazy initialization of LLM
 def get_llm():
@@ -60,17 +73,23 @@ def create_vector_db():
     vectordb = FAISS.from_documents(documents=data, embedding=embeddings)
     vectordb.save_local(vectordb_file_path)
 
+_vectordb_singleton = None
+
+
 def get_qa_chain():
+    global _vectordb_singleton
     embeddings = get_instructor_embeddings()
 
     if not os.path.exists(vectordb_file_path):
         create_vector_db()
 
-    try:
-        vectordb = FAISS.load_local(vectordb_file_path, embeddings, allow_dangerous_deserialization=True)
-    except TypeError:
-        vectordb = FAISS.load_local(vectordb_file_path, embeddings)
+    if _vectordb_singleton is None:
+        try:
+            _vectordb_singleton = FAISS.load_local(vectordb_file_path, embeddings, allow_dangerous_deserialization=True)
+        except TypeError:
+            _vectordb_singleton = FAISS.load_local(vectordb_file_path, embeddings)
 
+    vectordb = _vectordb_singleton
     retriever = vectordb.as_retriever(score_threshold=0.7)
 
     prompt_template = """Given the following context and a question, generate an answer based on this context only.
