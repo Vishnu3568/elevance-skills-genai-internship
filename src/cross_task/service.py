@@ -61,6 +61,6 @@ class CrossTaskService:
         Returns:
             UnifiedResponse: Standardized response payload.
         """
-        if not isinstance(request, UnifiedRequest):
+        if not (isinstance(request, UnifiedRequest) or type(request).__name__ == "UnifiedRequest"):
             raise TypeError(f"Expected UnifiedRequest instance, got {type(request).__name__}")
         return self.orchestrator.dispatch(request)
