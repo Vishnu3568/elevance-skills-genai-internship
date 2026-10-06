@@ -130,7 +130,7 @@ class TestCrossTaskOrchestrator(unittest.TestCase):
             reasoning="Image input detected",
             is_cross_lingual=False,
         )
-        self.mock_mm_service.process_request.return_value = MultimodalResponse(
+        self.mock_mm_service.process_interaction.return_value = MultimodalResponse(
             query="Explain this chart",
             answer="The chart illustrates model accuracy over epochs.",
             modality=ModalityType.TEXT_AND_IMAGE,
@@ -141,7 +141,7 @@ class TestCrossTaskOrchestrator(unittest.TestCase):
         resp = self.orchestrator.dispatch(req)
 
         self.assertEqual(resp.domain, DomainType.MULTIMODAL.value)
-        self.mock_mm_service.process_request.assert_called_once()
+        self.mock_mm_service.process_interaction.assert_called_once()
 
     def test_dispatch_cross_lingual(self):
         """Verify non-English customer queries route to Multilingual cross-lingual pipeline."""
@@ -155,7 +155,7 @@ class TestCrossTaskOrchestrator(unittest.TestCase):
             reasoning="Spanish language customer query",
             is_cross_lingual=True,
         )
-        self.mock_ml_service.process_text_request.return_value = MultilingualResponse(
+        self.mock_ml_service.answer_query.return_value = MultilingualResponse(
             query="¿Cuál es el costo del curso?",
             language="es",
             intent="fees",
@@ -172,7 +172,7 @@ class TestCrossTaskOrchestrator(unittest.TestCase):
         self.assertEqual(resp.domain, DomainType.CUSTOMER_SUPPORT.value)
         self.assertEqual(resp.detected_language, "es")
         self.assertEqual(resp.final_text_response, "El costo del curso es de $500.")
-        self.mock_ml_service.process_text_request.assert_called_once()
+        self.mock_ml_service.answer_query.assert_called_once()
 
     def test_dispatch_exception_resilience(self):
         """Verify that runtime errors inside a service return a structured error response without crashing."""

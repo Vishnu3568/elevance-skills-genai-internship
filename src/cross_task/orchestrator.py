@@ -164,19 +164,17 @@ class CrossTaskOrchestrator:
         try:
             # 2. Multimodal Routing Branch
             if decision.domain == DomainType.MULTIMODAL:
-                try:
-                    from src.multimodal.models import MultimodalRequest
-                except ImportError:
-                    from multimodal.models import MultimodalRequest  # type: ignore
-
-                mm_req = MultimodalRequest(
-                    query=request.query if request.query else "",
-                    images=[request.image] if request.image is not None else [],
-                    session_id=request.session_id,
-                    temperature=request.temperature,
-                )
                 mm_service = self.get_multimodal_service()
-                mm_resp = mm_service.process_request(mm_req, session_id=request.session_id)
+                image_bytes = request.image.data if request.image is not None else None
+                file_name = request.image.file_name if request.image is not None else None
+
+                mm_result = mm_service.process_interaction(
+                    session_id=request.session_id,
+                    query=request.query if request.query else None,
+                    image_bytes=image_bytes,
+                    file_name=file_name,
+                )
+                mm_resp = getattr(mm_result, "response", mm_result)
                 execution_time_ms = (time.perf_counter() - start_time) * 1000.0
 
                 unified_resp = adapt_multimodal_response(
@@ -237,7 +235,7 @@ class CrossTaskOrchestrator:
                     forced_language=decision.detected_language,
                 )
                 ml_service = self.get_multilingual_service()
-                ml_resp = ml_service.process_text_request(ml_req, session_id=request.session_id)
+                ml_resp = ml_service.answer_query(ml_req)
                 execution_time_ms = (time.perf_counter() - start_time) * 1000.0
 
                 unified_resp = adapt_multilingual_response(
