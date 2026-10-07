@@ -66,10 +66,7 @@ class ChatbotService:
         try:
             rag_res = chain.invoke({"query": stripped_query})
         except Exception:
-            try:
-                rag_res = chain({"query": stripped_query})
-            except Exception:
-                rag_res = chain(stripped_query)
+            rag_res = chain.invoke(stripped_query)
 
         source_documents = []
         if isinstance(rag_res, dict):
