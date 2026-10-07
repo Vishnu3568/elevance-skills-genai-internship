@@ -8,9 +8,8 @@ sentence-transformers==2.2.2
 InstructorEmbedding==1.0.1
 faiss-cpu==1.7.4
 numpy==1.26.4
-protobuf==4.25.9
 python-dotenv==1.0.0
-streamlit==1.32.0
+streamlit==1.65.0
 tiktoken==0.4.0
 huggingface-hub==0.19.4
 pandas==2.3.3
@@ -20,4 +19,3 @@ langchain-community==0.4.2
 langchain-core==1.5.3
 langchain-classic==1.0.8
 langchain-google-genai==4.3.2
-google-generativeai==0.3.2
