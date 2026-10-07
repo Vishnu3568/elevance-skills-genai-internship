@@ -19,7 +19,7 @@ try:
     # pyrefly: ignore [missing-import]
     from src.knowledge_base.audit import load_update_history  # type: ignore
     # pyrefly: ignore [missing-import]
-    import src.langchain_helper as langchain_helper  # type: ignore
+    import langchain_helper as langchain_helper  # type: ignore
 except ImportError:
     # pyrefly: ignore [missing-import]
     from knowledge_base.rebuild import rebuild_knowledge_base  # type: ignore

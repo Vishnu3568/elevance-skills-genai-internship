@@ -65,7 +65,7 @@ class CrossTaskOrchestrator:
                 from src.medical_main import build_vocabulary_from_vector_db
                 from src.medquad_query_analyzer import MedicalQueryAnalyzer
                 from src.medical_qa_service import MedicalQAService
-                from src.langchain_helper import get_llm
+                from langchain_helper import get_llm
             except ImportError:
                 from medquad_indexer import load_medical_vector_db, DEFAULT_MEDICAL_INDEX_PATH  # type: ignore
                 from medical_main import build_vocabulary_from_vector_db  # type: ignore
@@ -98,7 +98,7 @@ class CrossTaskOrchestrator:
         """Retrieve or lazily initialize Scientific Expert service."""
         if self._scientific_expert_service is None:
             try:
-                from src.langchain_helper import get_instructor_embeddings
+                from langchain_helper import get_instructor_embeddings
                 from src.scientific_kb import (
                     ScientificExpertService,
                     ScientificGenerator,

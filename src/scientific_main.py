@@ -21,7 +21,7 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 try:
     # pyrefly: ignore [missing-import]
-    from src.langchain_helper import get_instructor_embeddings  # type: ignore
+    from langchain_helper import get_instructor_embeddings  # type: ignore
     # pyrefly: ignore [missing-import]
     from src.scientific_kb import (  # type: ignore
         DEFAULT_SCIENTIFIC_VECTOR_STORE_PATH,

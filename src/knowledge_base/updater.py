@@ -23,7 +23,7 @@ try:
         add_documents_to_vector_store,
         create_knowledge_documents,
     )
-    from src.langchain_helper import get_instructor_embeddings
+    from langchain_helper import get_instructor_embeddings
 except ImportError:
     from knowledge_base.audit import (
         DEFAULT_HISTORY_PATH,

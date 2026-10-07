@@ -15,7 +15,7 @@ sys.path.append(os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__f
 from src.knowledge_base.scheduler import KnowledgeBaseScheduler
 from src.knowledge_base.vector_store import create_knowledge_documents
 from src.knowledge_base.audit import load_update_history
-from src.langchain_helper import get_instructor_embeddings
+from langchain_helper import get_instructor_embeddings
 try:
     from langchain_community.vectorstores import FAISS
 except ImportError:

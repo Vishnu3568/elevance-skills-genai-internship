@@ -104,7 +104,7 @@ class MultilingualReasoner:
         api_key = os.environ.get("GOOGLE_API_KEY", "")
         if api_key:
             try:
-                from src.langchain_helper import get_llm
+                from langchain_helper import get_llm
                 self._llm = get_llm()
                 return self._llm
             except Exception:

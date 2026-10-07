@@ -19,7 +19,7 @@ try:
     # pyrefly: ignore [missing-import]
     from src.scientific_kb.models import ScientificPaper  # type: ignore
     # pyrefly: ignore [missing-import]
-    from src.langchain_helper import get_instructor_embeddings  # type: ignore
+    from langchain_helper import get_instructor_embeddings  # type: ignore
 except ImportError:
     # pyrefly: ignore [missing-import]
     from scientific_kb.models import ScientificPaper  # type: ignore

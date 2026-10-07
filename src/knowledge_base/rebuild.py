@@ -32,7 +32,7 @@ try:
     # pyrefly: ignore [missing-import]
     from src.knowledge_base.audit import DEFAULT_HISTORY_PATH, record_update  # type: ignore
     # pyrefly: ignore [missing-import]
-    from src.langchain_helper import get_instructor_embeddings  # type: ignore
+    from langchain_helper import get_instructor_embeddings  # type: ignore
 except ImportError:
     # pyrefly: ignore [missing-import]
     from knowledge_base.store import (  # type: ignore

@@ -95,7 +95,7 @@ class CrossLingualRetriever:
             return self._retriever
 
         try:
-            from src.langchain_helper import get_qa_chain, vectordb_file_path, get_instructor_embeddings
+            from langchain_helper import get_qa_chain, vectordb_file_path, get_instructor_embeddings
             # pyrefly: ignore [missing-import]
             from langchain_community.vectorstores import FAISS  # type: ignore
 
@@ -109,7 +109,7 @@ class CrossLingualRetriever:
                     )
                 except TypeError:
                     vectordb = FAISS.load_local(vectordb_file_path, embeddings)
-                self._retriever = vectordb.as_retriever(score_threshold=0.7)
+                self._retriever = vectordb.as_retriever(score_threshold=0.55)
                 return self._retriever
         except Exception:
             pass

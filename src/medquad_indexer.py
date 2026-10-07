@@ -117,7 +117,7 @@ def load_medical_vector_db(
 
 def get_medical_retriever(
     index_path: str = DEFAULT_MEDICAL_INDEX_PATH,
-    score_threshold: float = 0.7
+    score_threshold: float = 0.55
 ):
     """Obtain a similarity retriever for the medical vector database.
 

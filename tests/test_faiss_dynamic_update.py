@@ -11,7 +11,7 @@ from src.knowledge_base.vector_store import (
     add_documents_to_vector_store,
     create_knowledge_documents,
 )
-from src.langchain_helper import get_instructor_embeddings
+from langchain_helper import get_instructor_embeddings
 try:
     from langchain_community.vectorstores import FAISS
 except ImportError:

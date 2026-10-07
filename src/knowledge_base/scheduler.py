@@ -9,7 +9,7 @@ try:
         DEFAULT_SOURCES_CONFIG_PATH,
         process_configured_sources,
     )
-    from src.langchain_helper import vectordb_file_path
+    from langchain_helper import vectordb_file_path
 except ImportError:
     from knowledge_base.audit import DEFAULT_HISTORY_PATH
     from knowledge_base.sources import (

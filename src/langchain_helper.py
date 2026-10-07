@@ -8,7 +8,7 @@ sys.path = [p for p in sys.path if p and os.path.abspath(p) != os.path.abspath('
 from dotenv import load_dotenv
 from langchain_community.vectorstores import FAISS
 from langchain_community.document_loaders import CSVLoader
-from langchain_community.embeddings import HuggingFaceInstructEmbeddings, HuggingFaceEmbeddings
+from langchain_community.embeddings import HuggingFaceEmbeddings
 from langchain_core.prompts import PromptTemplate
 from langchain_classic.chains import RetrievalQA
 
@@ -28,17 +28,11 @@ _instructor_embeddings_singleton = None
 def get_instructor_embeddings():
     global _instructor_embeddings_singleton
     if _instructor_embeddings_singleton is None:
-        try:
-            _instructor_embeddings_singleton = HuggingFaceInstructEmbeddings(
-                model_name="hkunlp/instructor-large",
-                model_kwargs={"device": "cpu"},
-                encode_kwargs={"normalize_embeddings": True},
-            )
-        except Exception as e:
-            _instructor_embeddings_singleton = HuggingFaceEmbeddings(
-                model_name="sentence-transformers/all-MiniLM-L6-v2",
-                model_kwargs={"device": "cpu"},
-            )
+        _instructor_embeddings_singleton = HuggingFaceEmbeddings(
+            model_name="BAAI/bge-small-en-v1.5",
+            model_kwargs={"device": "cpu"},
+            encode_kwargs={"normalize_embeddings": True},
+        )
     return _instructor_embeddings_singleton
 
 # Lazy initialization of LLM
@@ -90,7 +84,7 @@ def get_qa_chain():
             _vectordb_singleton = FAISS.load_local(vectordb_file_path, embeddings)
 
     vectordb = _vectordb_singleton
-    retriever = vectordb.as_retriever(score_threshold=0.7)
+    retriever = vectordb.as_retriever(score_threshold=0.55)
 
     prompt_template = """Given the following context and a question, generate an answer based on this context only.
     In the answer try to provide as much text as possible from "response" section in the source document context without making much changes.

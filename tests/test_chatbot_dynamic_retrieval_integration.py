@@ -21,7 +21,7 @@ try:
     # pyrefly: ignore [missing-import]
     from src.knowledge_base.audit import load_update_history  # type: ignore
     # pyrefly: ignore [missing-import]
-    import src.langchain_helper as src_lh  # type: ignore
+    import langchain_helper as src_lh  # type: ignore
 except ImportError:
     # pyrefly: ignore [missing-import]
     from chatbot_service import ChatbotService, ChatbotResponse  # type: ignore

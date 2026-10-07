@@ -12,7 +12,7 @@ sys.path.append(os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__f
 
 from src.knowledge_base.updater import update_knowledge_base
 from src.knowledge_base.store import load_knowledge_base
-from src.langchain_helper import get_instructor_embeddings
+from langchain_helper import get_instructor_embeddings
 try:
     from langchain_community.vectorstores import FAISS
 except ImportError:

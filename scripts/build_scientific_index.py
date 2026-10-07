@@ -17,7 +17,7 @@ sys.path.append(os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__f
 
 try:
     # pyrefly: ignore [missing-import]
-    from src.langchain_helper import get_instructor_embeddings  # type: ignore
+    from langchain_helper import get_instructor_embeddings  # type: ignore
     # pyrefly: ignore [missing-import]
     from src.scientific_kb import (  # type: ignore
         DEFAULT_SCIENTIFIC_VECTOR_STORE_PATH,

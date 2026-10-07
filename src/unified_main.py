@@ -55,6 +55,12 @@ def configure_page() -> None:
     )
 
 
+@st.cache_resource
+def get_cross_task_service() -> CrossTaskService:
+    """Retrieve or initialize the shared CrossTaskService singleton."""
+    return CrossTaskService()
+
+
 def initialize_session_state() -> None:
     """Initialize conversation history and session identifier."""
     if "session_id" not in st.session_state:
@@ -62,7 +68,7 @@ def initialize_session_state() -> None:
     if "messages" not in st.session_state:
         st.session_state.messages = []
     if "cross_task_service" not in st.session_state:
-        st.session_state.cross_task_service = CrossTaskService()
+        st.session_state.cross_task_service = get_cross_task_service()
 
 
 def render_sidebar() -> Tuple[Optional[str], Optional[Any]]:
