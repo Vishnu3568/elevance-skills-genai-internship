@@ -49,7 +49,37 @@ class TestCrossTaskUI(unittest.TestCase):
 
         ui_module.render_response_metadata(resp)
         mock_st.columns.assert_called_once_with(4)
+        col3_mock = mock_st.columns.return_value[2]
+        col3_mock.metric.assert_called_once_with("Grounding", "GROUNDED (HIGH)")
+        mock_st.info.assert_called_once_with("📊 Detected Sentiment Tone: **NEUTRAL**")
         self.assertTrue(mock_st.expander.called)
+
+    @patch("src.unified_main.st")
+    def test_render_response_metadata_ood_and_sentiment_confidence(self, mock_st):
+        """Verify render_response_metadata displays INSUFFICIENT grounding and formatted sentiment confidence."""
+        mock_st.columns.return_value = (MagicMock(), MagicMock(), MagicMock(), MagicMock())
+
+        resp = UnifiedResponse(
+            query="Can I get a certificate upon completion?",
+            final_text_response="I don't know.",
+            domain="customer_support",
+            detected_language="en",
+            detected_language_name="English",
+            confidence_score=0.0,
+            confidence_tier="INSUFFICIENT",
+            evidence=[],
+            citations=[],
+            is_grounded=False,
+            sentiment="POSITIVE",
+            execution_time_ms=85.2,
+            metadata={"sentiment_confidence": 0.9898},
+        )
+
+        ui_module.render_response_metadata(resp)
+        col3_mock = mock_st.columns.return_value[2]
+        col3_mock.metric.assert_called_once_with("Grounding", "INSUFFICIENT")
+        mock_st.info.assert_called_once_with("📊 Detected Sentiment Tone: **POSITIVE** (99.0%)")
+        self.assertFalse(mock_st.expander.called)
 
 
 if __name__ == "__main__":

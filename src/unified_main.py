@@ -166,16 +166,23 @@ def render_response_metadata(resp: UnifiedResponse) -> None:
     lang_display = f"{resp.detected_language_name} ({resp.detected_language})"
     col2.metric("Detected Language", lang_display)
 
-    # Confidence Tier
-    confidence_pct = f"{resp.confidence_score * 100:.1f}% ({resp.confidence_tier})"
-    col3.metric("Grounded Confidence", confidence_pct)
+    # Grounding Status & Tier
+    if resp.is_grounded:
+        grounding_display = f"GROUNDED ({resp.confidence_tier})"
+    else:
+        grounding_display = resp.confidence_tier
+    col3.metric("Grounding", grounding_display)
 
     # Execution Latency
     col4.metric("Latency", f"{resp.execution_time_ms:.1f} ms")
 
     # Sentiment Alert (if detected)
     if resp.sentiment:
-        st.info(f"📊 Detected Sentiment Tone: **{resp.sentiment}**")
+        sent_conf = resp.metadata.get("sentiment_confidence")
+        if sent_conf is not None:
+            st.info(f"📊 Detected Sentiment Tone: **{resp.sentiment}** ({sent_conf * 100:.1f}%)")
+        else:
+            st.info(f"📊 Detected Sentiment Tone: **{resp.sentiment}**")
 
     # Warning / Fallback Notice
     if resp.warning_message:

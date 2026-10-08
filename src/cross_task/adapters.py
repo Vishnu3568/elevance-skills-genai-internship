@@ -35,34 +35,42 @@ def adapt_chatbot_response(
     execution_time_ms: float = 0.0,
 ) -> UnifiedResponse:
     """Adapt Task 1/2 Customer Service response to UnifiedResponse."""
+    is_ood = bool(getattr(resp, "is_ood", False))
+    sentiment_score = float(getattr(resp, "confidence_score", 1.0))
+
     evidence_items: List[EvidenceItem] = []
     citations: List[CitationItem] = []
 
-    # Map source documents to evidence and citations
-    raw_docs = getattr(resp, "source_documents", []) or []
-    for idx, doc in enumerate(raw_docs):
-        page_content = getattr(doc, "page_content", str(doc))
-        metadata = getattr(doc, "metadata", {}) or {}
-        evidence_items.append(
-            EvidenceItem(
-                description=page_content[:300] + ("..." if len(page_content) > 300 else ""),
-                source="customer_knowledge_base",
-                confidence=float(getattr(resp, "confidence_score", 1.0)),
-                metadata=metadata if isinstance(metadata, dict) else {},
+    # Map source documents to evidence and citations only when grounded (not OOD)
+    if not is_ood:
+        raw_docs = getattr(resp, "source_documents", []) or []
+        for idx, doc in enumerate(raw_docs):
+            page_content = getattr(doc, "page_content", str(doc))
+            metadata = getattr(doc, "metadata", {}) or {}
+            evidence_items.append(
+                EvidenceItem(
+                    description=page_content[:300] + ("..." if len(page_content) > 300 else ""),
+                    source="customer_knowledge_base",
+                    confidence=1.0,
+                    metadata=metadata if isinstance(metadata, dict) else {},
+                )
             )
-        )
-        source_id = str(metadata.get("source", f"kb_item_{idx+1}"))
-        citations.append(
-            CitationItem(
-                title=f"Knowledge Base FAQ ({source_id})",
-                source_id=source_id,
-                extra=metadata if isinstance(metadata, dict) else {},
+            source_id = str(metadata.get("source", f"kb_item_{idx+1}"))
+            citations.append(
+                CitationItem(
+                    title=f"Knowledge Base FAQ ({source_id})",
+                    source_id=source_id,
+                    extra=metadata if isinstance(metadata, dict) else {},
+                )
             )
-        )
 
-    confidence = float(getattr(resp, "confidence_score", 1.0))
-    tier = _determine_confidence_tier(confidence)
-    is_ood = bool(getattr(resp, "is_ood", False))
+    if is_ood:
+        confidence = 0.0
+        tier = ConfidenceTier.INSUFFICIENT.value
+    else:
+        confidence = 1.0
+        tier = ConfidenceTier.HIGH.value
+
     final_answer = getattr(resp, "final_answer", str(resp))
 
     return UnifiedResponse(
@@ -82,6 +90,7 @@ def adapt_chatbot_response(
         metadata={
             "raw_answer": getattr(resp, "raw_answer", ""),
             "is_ood": is_ood,
+            "sentiment_confidence": sentiment_score,
         },
     )
 

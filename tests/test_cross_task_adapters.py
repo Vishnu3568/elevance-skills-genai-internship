@@ -57,11 +57,42 @@ class TestCrossTaskAdapters(unittest.TestCase):
         self.assertEqual(unified.domain, DomainType.CUSTOMER_SUPPORT.value)
         self.assertEqual(unified.final_text_response, "The data science course duration is 6 months.")
         self.assertEqual(unified.sentiment, "POSITIVE")
-        self.assertEqual(unified.confidence_score, 0.92)
+        self.assertEqual(unified.confidence_score, 1.0)
         self.assertEqual(unified.confidence_tier, ConfidenceTier.HIGH.value)
+        self.assertTrue(unified.is_grounded)
         self.assertEqual(len(unified.evidence), 1)
+        self.assertEqual(unified.evidence[0].confidence, 1.0)
         self.assertEqual(len(unified.citations), 1)
         self.assertEqual(unified.citations[0].source_id, "faq_42")
+        self.assertEqual(unified.metadata.get("sentiment_confidence"), 0.92)
+
+    def test_adapt_chatbot_response_ood(self):
+        """Verify Task 1/2 ChatbotResponse adaptation when is_ood is True."""
+        mock_doc = MagicMock()
+        mock_doc.page_content = "Can I add this course to my resume?"
+        mock_doc.metadata = {"source": "faq_19"}
+
+        cb_resp = ChatbotResponse(
+            query="Can I get a certificate upon completion?",
+            final_answer="I don't know.",
+            raw_answer="I don't know.",
+            sentiment_label="POSITIVE",
+            confidence_score=0.9898,
+            is_ood=True,
+            source_documents=[mock_doc],
+        )
+
+        unified = adapt_chatbot_response(cb_resp, query="Can I get a certificate upon completion?")
+        self.assertEqual(unified.domain, DomainType.CUSTOMER_SUPPORT.value)
+        self.assertEqual(unified.final_text_response, "I don't know.")
+        self.assertEqual(unified.sentiment, "POSITIVE")
+        self.assertEqual(unified.confidence_score, 0.0)
+        self.assertEqual(unified.confidence_tier, ConfidenceTier.INSUFFICIENT.value)
+        self.assertFalse(unified.is_grounded)
+        self.assertEqual(len(unified.evidence), 0)
+        self.assertEqual(len(unified.citations), 0)
+        self.assertAlmostEqual(unified.metadata.get("sentiment_confidence", 0.0), 0.9898, places=4)
+        self.assertTrue(unified.metadata.get("is_ood"))
 
     def test_adapt_medical_response(self):
         """Verify Task 3 MedicalQAResponse adaptation."""
